@@ -605,7 +605,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative z-10">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4">
           <div className="flex items-center justify-between">
@@ -1004,108 +1004,90 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                 </div>
               </div>
 
-              {/* Assignments Table */}
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Volunteer
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Need
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Assigned Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Due Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {assignments.map((assignment) => (
-                      <tr key={assignment.id} className="table-row-animate">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3 ${
-                              assignment.volunteer === 'Demo Volunteer' ? 'bg-blue-500' :
-                              assignment.volunteer === 'Priya Sharma' ? 'bg-green-500' :
-                              assignment.volunteer === 'Rahul Kumar' ? 'bg-purple-500' :
-                              assignment.volunteer === 'Ananya Patel' ? 'bg-pink-500' : 'bg-yellow-500'
-                            }`}>
-                              {(assignment.volunteer || '').split(' ').map((n: string) => n[0]).join('') || 'V'}
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{assignment.volunteer}</div>
-                              <div className="text-sm text-gray-500">
-                                {assignment.volunteerCity || 'Unknown'}
-                              </div>
-                            </div>
+              {/* Assignments Cards */}
+              <div className="space-y-4 w-full">
+                {assignments.map((assignment) => (
+                  <div key={assignment.id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow duration-200 w-full">
+                    {/* Volunteer Info */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3 ${
+                          assignment.volunteer === 'Demo Volunteer' ? 'bg-blue-500' :
+                          assignment.volunteer === 'Priya Sharma' ? 'bg-green-500' :
+                          assignment.volunteer === 'Rahul Kumar' ? 'bg-purple-500' :
+                          assignment.volunteer === 'Ananya Patel' ? 'bg-pink-500' : 'bg-yellow-500'
+                        }`}>
+                          {(assignment.volunteer || '').split(' ').map((n: string) => n[0]).join('') || 'V'}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{assignment.volunteer}</div>
+                          <div className="text-xs text-gray-500">
+                            {assignment.volunteerCity || 'Unknown'}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{assignment.needTitle || assignment.need}</div>
-                            <div className="text-sm text-gray-500">
-                              {needs.find(n => n.id === assignment.needId)?.description?.substring(0, 50) + '...' || 'Community service'}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            assignment.status === 'active' ? 'bg-blue-100 text-blue-800' :
-                            assignment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            assignment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {assignment.status === 'active' ? 'Active' : 
-                             assignment.status === 'completed' ? 'Completed' : 
-                             assignment.status === 'pending' ? 'Pending' : 
-                             assignment.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        </div>
+                      </div>
+                      
+                      {/* Status Badge */}
+                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        assignment.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                        assignment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        assignment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {assignment.status === 'active' ? 'Active' : 
+                         assignment.status === 'completed' ? 'Completed' : 
+                         assignment.status === 'pending' ? 'Pending' : 
+                         assignment.status}
+                      </span>
+                    </div>
+
+                    {/* Need Title */}
+                    <div className="mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-2">{assignment.needTitle || assignment.need}</h4>
+                      <p className="text-sm text-gray-600">
+                        {needs.find(n => n.id === assignment.needId)?.description?.substring(0, 100) + '...' || 'Community service'}
+                      </p>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase tracking-wider">Assigned Date</span>
+                        <p className="text-sm text-gray-900 mt-1">
                           {assignment.assignedDate?.toDate?.()?.toLocaleDateString() || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase tracking-wider">Due Date</span>
+                        <p className="text-sm text-gray-900 mt-1">
                           {assignment.dueDate?.toDate?.()?.toLocaleDateString() || assignment.dueDate || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Button size="sm" className="mr-2" onClick={() => handleViewAssignment(assignment.id)}>View</Button>
-                          {assignment.status === 'pending' && (
-                            <Button size="sm" variant="outline" onClick={() => handleStartAssignment(assignment.id)}>Start</Button>
-                          )}
-                          {assignment.status === 'active' && (
-                            <Button size="sm" variant="outline" onClick={() => handleCompleteAssignment(assignment.id)}>Complete</Button>
-                          )}
-                          {assignment.status === 'completed' && (
-                            <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 mr-2">
-                              Completed
-                            </span>
-                          )}
-                          {assignment.status === 'completed' && (
-                            assignment.rating ? (
-                              <Button size="sm" variant="outline" disabled className="opacity-50 cursor-not-allowed">
-                                Rated ({assignment.rating}⭐)
-                              </Button>
-                            ) : (
-                              <Button size="sm" variant="outline" onClick={() => handleRateVolunteer(assignment)}>Rate</Button>
-                            )
-                          )}
-                          {(assignment.status === 'active' || assignment.status === 'completed') && (
-                            <Button size="sm" variant="outline" className="ml-2" onClick={() => addNotification('Report functionality coming soon!', 'info')}>Report</Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => handleViewAssignment(assignment.id)}>View</Button>
+                      {assignment.status === 'pending' && (
+                        <Button size="sm" variant="outline" onClick={() => handleStartAssignment(assignment.id)}>Start</Button>
+                      )}
+                      {assignment.status === 'active' && (
+                        <Button size="sm" variant="outline" onClick={() => handleCompleteAssignment(assignment.id)}>Complete</Button>
+                      )}
+                      {assignment.status === 'completed' && (
+                        assignment.rating ? (
+                          <Button size="sm" variant="outline" disabled className="opacity-50 cursor-not-allowed">
+                            Rated ({assignment.rating}⭐)
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => handleRateVolunteer(assignment)}>Rate</Button>
+                        )
+                      )}
+                      {(assignment.status === 'active' || assignment.status === 'completed') && (
+                        <Button size="sm" variant="outline" onClick={() => addNotification('Report functionality coming soon!', 'info')}>Report</Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
