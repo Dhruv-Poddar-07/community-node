@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import InteractiveMap from '../components/InteractiveMap';
 
-// Print-specific styles
+// Print-specific styles and animations
 const printStyles = `
 @media print {
   /* Hide everything except the report content */
@@ -67,6 +67,63 @@ const printStyles = `
     line-height: 1.5;
     margin: 10px 0;
   }
+}
+
+/* Home page animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.home-fade-in {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.home-card-enter {
+  animation: fadeInScale 0.4s ease-out forwards;
+}
+
+/* Enhanced hover transitions */
+.home-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.home-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Stagger animation delays */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+
+/* Line clamp utility */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 `;
 
@@ -736,34 +793,34 @@ export default function VolunteerLayout() {
         <div className="flex-1 overflow-auto">
           <main className="p-6 content-fade">
             {activeTab === 'home' && (
-              <div className="page-transition-fade stagger-reveal">
+              <div className="home-fade-in">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   {getGreeting()}, {user?.name}!
                 </h3>
                 <p className="text-gray-600 mb-6">Welcome back to your volunteer dashboard</p>
 
               {/* Impact Strip */}
-              <div className="grid grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-2">
-                    <h4 className="text-sm font-medium text-gray-600 mb-1">Hours Logged</h4>
-                    <div className="text-2xl font-bold text-gray-900">{getTotalHoursFromAssignments()}</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 home-card-enter home-card-hover stagger-2 min-h-[100px] flex flex-col justify-center">
+                    <h4 className="text-sm font-medium text-gray-600 mb-1 truncate">Hours Logged</h4>
+                    <div className="text-2xl font-bold text-gray-900 overflow-hidden">{getTotalHoursFromAssignments()}</div>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-3">
-                    <h4 className="text-sm font-medium text-gray-600 mb-1">Active Tasks</h4>
-                    <div className="text-2xl font-bold text-blue-600">{myAssignments.filter(a => a.status !== 'completed').length}</div>
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 home-card-enter home-card-hover stagger-3 min-h-[100px] flex flex-col justify-center">
+                    <h4 className="text-sm font-medium text-gray-600 mb-1 truncate">Active Tasks</h4>
+                    <div className="text-2xl font-bold text-blue-600 overflow-hidden">{myAssignments.filter(a => a.status !== 'completed').length}</div>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-4">
-                    <h4 className="text-sm font-medium text-gray-600 mb-1">Badge</h4>
-                    <div className="text-2xl font-bold text-gray-900 capitalize">{getVolunteerBadge()}</div>
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 home-card-enter home-card-hover stagger-4 min-h-[100px] flex flex-col justify-center">
+                    <h4 className="text-sm font-medium text-gray-600 mb-1 truncate">Badge</h4>
+                    <div className="text-2xl font-bold text-gray-900 capitalize overflow-hidden">{getVolunteerBadge()}</div>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-5">
-                    <h4 className="text-sm font-medium text-gray-600 mb-1">Average Rating</h4>
-                    <div className="flex items-center">
-                      <div className="text-2xl font-bold text-gray-900 mr-2">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 home-card-enter home-card-hover stagger-5 min-h-[100px] flex flex-col justify-center">
+                    <h4 className="text-sm font-medium text-gray-600 mb-1 truncate">Average Rating</h4>
+                    <div className="flex items-center overflow-hidden">
+                      <div className="text-2xl font-bold text-gray-900 mr-2 flex-shrink-0">
                         {getAverageRating()}
                       </div>
                       {getAverageRating() && (
-                        <div className="flex text-yellow-400">
+                        <div className="flex text-yellow-400 flex-shrink-0">
                           {[...Array(5)].map((_, i) => (
                             <span key={i} className={i < Math.floor(parseFloat(getAverageRating()) || 0) ? 'text-yellow-400' : 'text-gray-300'}>
                               ★
@@ -773,29 +830,29 @@ export default function VolunteerLayout() {
                       )}
                     </div>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-600 mb-1">People Helped</h4>
-                    <div className="text-2xl font-bold text-gray-900">{getPeopleHelped()}</div>
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 home-card-enter home-card-hover stagger-6 min-h-[100px] flex flex-col justify-center md:col-span-4 lg:col-span-1">
+                    <h4 className="text-sm font-medium text-gray-600 mb-1 truncate">People Helped</h4>
+                    <div className="text-2xl font-bold text-gray-900 overflow-hidden">{getPeopleHelped()}</div>
                   </div>
                 </div>
 
               {/* Matched Tasks */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 w-full">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Your Matched Tasks</h4>
                 <div className="mb-3">
                   <p className="text-sm text-gray-600">
                     Showing tasks that match your skills: 
-                    <span className="font-medium text-green-600">
+                    <span className="font-medium text-green-600 break-words">
                       {volunteer?.skills?.join(', ') || 'No skills added yet'}
                     </span>
                   </p>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-4 w-full">
                   {getSkillMatchedTasks().map((need) => (
-                    <div key={need.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex items-center justify-between mb-2">
-                        <h5 className="font-medium text-gray-900">{need.title}</h5>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
+                    <div key={need.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-200 w-full">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                        <h5 className="font-medium text-gray-900 truncate flex-1">{need.title}</h5>
+                        <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
                           need.urgency === 'critical' ? 'bg-red-100 text-red-800' :
                           need.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
                           need.urgency === 'medium' ? 'bg-yellow-100 text-yellow-800' :
@@ -804,14 +861,14 @@ export default function VolunteerLayout() {
                           {need.urgency}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3">{need.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-500">Required: {need.requiredSkill}</span>
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-3 overflow-hidden">{need.description}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <span className="text-sm text-gray-500 truncate">Required: {need.requiredSkill}</span>
                         <Button 
                           size="sm" 
                           onClick={() => handleApply(need.id)}
                           disabled={appliedTasks.includes(need.id)}
-                          className={appliedTasks.includes(need.id) ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}
+                          className={appliedTasks.includes(need.id) ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700 flex-shrink-0'}
                         >
                           {appliedTasks.includes(need.id) ? 'Applied' : 'Apply'}
                         </Button>
@@ -822,21 +879,21 @@ export default function VolunteerLayout() {
               </div>
 
               {/* Recent Activity */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 mt-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 mt-6 w-full">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h4>
-                <div className="space-y-3">
+                <div className="space-y-3 w-full">
                   {getRecentActivities().map((activity, index) => (
-                    <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{activity.title}: {activity.description}</p>
-                        <p className="text-xs text-gray-500">{activity.location}</p>
+                    <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 border-b border-gray-100 gap-2 w-full">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{activity.title}: {activity.description}</p>
+                        <p className="text-xs text-gray-500 truncate">{activity.location}</p>
                       </div>
-                      <span className="text-xs text-gray-500">{activity.timeAgo}</span>
+                      <span className="text-xs text-gray-500 flex-shrink-0">{activity.timeAgo}</span>
                     </div>
                   ))}
                   {getRecentActivities().length === 0 && (
-                    <div className="flex items-center justify-between py-2">
-                      <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 gap-2 w-full">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">No recent activity</p>
                         <p className="text-xs text-gray-500">Start applying for tasks to see your activity here</p>
                       </div>
