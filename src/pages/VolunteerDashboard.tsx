@@ -828,7 +828,7 @@ export default function VolunteerLayout() {
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Skills</label>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {['Teaching', 'First Aid', 'Medical', 'Engineering', 'Legal Aid', 'Tree Plantation', 'Elder Care', 'Tutoring', 'Digital Literacy', 'Sports Coaching'].map(skill => (
+                      {['Teaching', 'First Aid', 'Medical', 'Engineering', 'Legal Aid', 'Tree Plantation', 'Elder Care', 'Tutoring', 'Digital Literacy', 'Sports Coaching', 'General'].map(skill => (
                         <label key={skill} className="flex items-center space-x-2">
                           <input
                             type="checkbox"
