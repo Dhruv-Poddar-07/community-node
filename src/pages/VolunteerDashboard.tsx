@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Button } from '../components/ui/button';
 import NotificationUI from '../components/ui/notification';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { 
   Home, 
@@ -27,23 +27,28 @@ export default function VolunteerLayout() {
   const [volunteerSkills, setVolunteerSkills] = useState<string[]>([]);
   const [myAssignments, setMyAssignments] = useState<any[]>([]);
   
-  // Fetch needs from API (filtered by volunteer capabilities)
+  // Fetch needs from Firestore (filtered by volunteer capabilities)
   const fetchNeeds = async () => {
     try {
-      if (volunteer?.id) {
-        // Fetch only tasks that match volunteer's skills and location
-        const response = await fetch(`/api/needs/matched/${volunteer.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          setAvailableNeeds(data.matchedNeeds || []);
-        }
+      const needsCollection = collection(db, 'needs');
+      
+      if (volunteer?.city) {
+        // Fetch only tasks that match volunteer's city
+        const q = query(needsCollection, where('city', '==', volunteer.city));
+        const querySnapshot = await getDocs(q);
+        const needsData = querySnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data() 
+        }));
+        setAvailableNeeds(needsData);
       } else {
-        // Fallback to all needs if volunteer data not available
-        const response = await fetch('/api/needs');
-        if (response.ok) {
-          const needs = await response.json();
-          setAvailableNeeds(needs);
-        }
+        // Fallback to all needs if volunteer city not available
+        const querySnapshot = await getDocs(needsCollection);
+        const needsData = querySnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data() 
+        }));
+        setAvailableNeeds(needsData);
       }
     } catch (error) {
       console.error('Error fetching needs:', error);
