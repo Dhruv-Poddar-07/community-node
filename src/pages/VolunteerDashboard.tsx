@@ -3,8 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Button } from '../components/ui/button';
 import NotificationUI from '../components/ui/notification';
-import { collection, query, where, onSnapshot, doc, getDoc, getDocs } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '../config/firebase';
 import { 
   Home, 
   TrendingUp, 
@@ -71,36 +72,41 @@ export default function VolunteerLayout() {
     console.log('volunteerSkills state updated:', volunteerSkills);
   }, [volunteerSkills]);
 
-  // Fetch volunteer assignments from Firestore
+  // Fetch volunteer assignments from Firestore with proper auth state handling
   useEffect(() => {
-    if (user?.id) {
-      console.log('🔍 Fetching assignments for user ID:', user.id);
-      console.log('👤 User object:', user);
-      
-      const assignmentsCollection = collection(db, 'assignments');
-      const q = query(assignmentsCollection, where('volunteerId', '==', user.id));
-      
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const assignmentsData = querySnapshot.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data() 
-        }));
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log('🔍 Auth state confirmed. Current user UID:', auth.currentUser?.uid);
+        console.log('👤 Auth user object:', user);
         
-        console.log('📋 Assignments query results:', {
-          query: `volunteerId == ${user.id}`,
-          resultsCount: assignmentsData.length,
-          assignments: assignmentsData
+        const assignmentsCollection = collection(db, 'assignments');
+        const q = query(assignmentsCollection, where('volunteerId', '==', auth.currentUser?.uid));
+        
+        const unsubscribeAssignments = onSnapshot(q, (querySnapshot) => {
+          const assignmentsData = querySnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+          }));
+          
+          console.log('📋 Assignments fetched:', assignmentsData);
+          console.log('📊 Query results:', {
+            query: `volunteerId == ${auth.currentUser?.uid}`,
+            resultsCount: assignmentsData.length,
+            assignments: assignmentsData
+          });
+          
+          setMyAssignments(assignmentsData);
         });
         
-        setMyAssignments(assignmentsData);
-      });
-      
-      return () => unsubscribe();
-    } else {
-      console.log('❌ No user.id available for fetching assignments');
-      console.log('👤 User object:', user);
-    }
-  }, [user?.id]);
+        return () => unsubscribeAssignments();
+      } else {
+        console.log('❌ No authenticated user available');
+        setMyAssignments([]);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
 
   // Fetch volunteer skills from Firestore document
   useEffect(() => {
@@ -398,6 +404,21 @@ export default function VolunteerLayout() {
     setVolunteerSkills(updatedSkills);
   };
 
+  // Handle marking assignment as complete
+  const handleMarkComplete = async (assignmentId: string) => {
+    try {
+      const assignmentRef = doc(db, 'assignments', assignmentId);
+      await updateDoc(assignmentRef, {
+        status: 'completed',
+        completedAt: new Date()
+      });
+      addNotification('Assignment marked as complete!', 'success');
+    } catch (error) {
+      console.error('Error marking assignment as complete:', error);
+      addNotification('Failed to mark assignment as complete', 'error');
+    }
+  };
+
   // Skill-based task matching function
   const getSkillMatchedTasks = () => {
     return availableNeeds.filter((need: any) => {
@@ -555,8 +576,8 @@ export default function VolunteerLayout() {
                     <div className="text-2xl font-bold text-gray-900">{getTotalHoursFromAssignments()}</div>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-3">
-                    <h4 className="text-sm font-medium text-gray-600 mb-1">Tasks Done</h4>
-                    <div className="text-2xl font-bold text-gray-900">{getCompletedTasksCount()}</div>
+                    <h4 className="text-sm font-medium text-gray-600 mb-1">Active Tasks</h4>
+                    <div className="text-2xl font-bold text-blue-600">{myAssignments.filter(a => a.status !== 'completed').length}</div>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-4">
                     <h4 className="text-sm font-medium text-gray-600 mb-1">Badge</h4>
@@ -660,50 +681,66 @@ export default function VolunteerLayout() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="bg-white border border-gray-200 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-gray-600 mb-1">Active Tasks</h4>
-                  <div className="text-2xl font-bold text-blue-600">{getSkillMatchedTasks().filter(n => !appliedTasks.includes(n.id)).length}</div>
+                  <div className="text-2xl font-bold text-blue-600">{myAssignments.filter(a => a.status !== 'completed').length}</div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-gray-600 mb-1">Completed This Week</h4>
-                  <div className="text-2xl font-bold text-green-600">3</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {myAssignments.filter(a => a.status === 'completed' && 
+                      new Date(a.completedAt || Date.now()) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                    ).length}
+                  </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-gray-600 mb-1">Total Completed</h4>
-                  <div className="text-2xl font-bold text-gray-900">8</div>
+                  <div className="text-2xl font-bold text-gray-900">{myAssignments.filter(a => a.status === 'completed').length}</div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                {/* Show skill-matched tasks */}
-                {getSkillMatchedTasks().filter(need => !appliedTasks.includes(need.id)).map((need) => (
-                  <div key={need.id} className="bg-white border border-gray-200 rounded-lg p-6 card-animate">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{need.title}</h4>
-                        <p className="text-sm text-gray-500">Due: Open</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        need.urgency === 'critical' ? 'bg-red-100 text-red-800' :
-                        need.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
-                        need.urgency === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        Available
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4">{need.description}</p>
-                    <div className="flex gap-2">
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleViewTaskDetails(need)}>View Details</Button>
-                      <Button 
-                        size="sm" 
-                        onClick={() => handleApply(need.id)}
-                        disabled={appliedTasks.includes(need.id)}
-                        className={appliedTasks.includes(need.id) ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}
-                      >
-                        {appliedTasks.includes(need.id) ? 'Applied' : 'Apply'}
-                      </Button>
-                    </div>
+                {myAssignments.length === 0 ? (
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
+                    <p className="text-gray-500">No assignments found. Apply for tasks to see them here.</p>
                   </div>
-                ))}
+                ) : (
+                  myAssignments.map((assignment) => (
+                    <div key={assignment.id} className="bg-white border border-gray-200 rounded-lg p-6 card-animate">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{assignment.needTitle || assignment.title || 'Untitled Task'}</h4>
+                          <p className="text-sm text-gray-500">
+                            Due: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'No due date'}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          assignment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          assignment.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                          assignment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {assignment.status || 'Unknown'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-4">
+                        {assignment.description || 'No description available'}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleViewTaskDetails(assignment)}>
+                          View Details
+                        </Button>
+                        {assignment.status !== 'completed' && (
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleMarkComplete(assignment.id)}
+                          >
+                            Mark Complete
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
