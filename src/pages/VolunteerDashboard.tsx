@@ -438,7 +438,7 @@ export default function VolunteerLayout() {
                       {getAverageRating() && (
                         <div className="flex text-yellow-400">
                           {[...Array(5)].map((_, i) => (
-                            <span key={i} className={i < Math.floor(getAverageRating() || 0) ? 'text-yellow-400' : 'text-gray-300'}>
+                            <span key={i} className={i < Math.floor(parseFloat(getAverageRating()) || 0) ? 'text-yellow-400' : 'text-gray-300'}>
                               ★
                             </span>
                           ))}
@@ -675,7 +675,7 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                     <input
                       type="tel"
-                      defaultValue={volunteer?.phone || user?.phone || ''}
+                      defaultValue={user?.phone || ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -683,7 +683,7 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
                     <select 
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      defaultValue={volunteer?.city || user?.city || 'Mumbai'}
+                      defaultValue={volunteer?.city || 'Mumbai'}
                     >
                       <option value="Mumbai">Mumbai</option>
                       <option value="Delhi">Delhi</option>
@@ -773,7 +773,7 @@ export default function VolunteerLayout() {
                   <div>
                     <h5 className="font-medium text-gray-900 mb-3">Activities</h5>
                     <ul className="space-y-1 text-sm text-gray-600">
-                      {myAssignments.filter((a: any) => a.status === 'completed').slice(0, 5).map((assignment: any, index: number) => (
+                      {myAssignments.filter((a: any) => a.status === 'completed').slice(0, 5).map((assignment: any) => (
                         <li key={assignment.id}>
                           Completed {assignment.title || 'Task'} ({assignment.estimatedHours || 3} hours)
                         </li>
