@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Community Node
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A volunteer coordination web app for NGOs across India, built for Google Solution Challenge 2026.
 
-Currently, two official plugins are available:
+## What it does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- NGO staff can post community needs (food, medical, education, etc.)
+- Volunteers get matched to needs based on their city and skills
+- Assignments are managed end-to-end — apply, assign, complete, rate
+- Real-time community chat for staff and volunteers
+- Live map showing needs and volunteers by location
+- Volunteer profiles with ratings, badges, and impact tracking
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend:** React + TypeScript + Vite + TailwindCSS
+- **Database:** Firebase Firestore
+- **Auth:** Firebase Authentication
+- **Maps:** Leaflet.js + OpenStreetMap
 
-## Expanding the ESLint configuration
+## Portals
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+**Staff Portal**
+- Post and manage community needs
+- View and assign volunteers
+- Rate volunteers after task completion
+- Community chat and live map
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**Volunteer Portal**
+- View needs matched by city and skills
+- Apply for tasks and mark completion
+- Profile with ratings, badges, and stats
+- Community chat and live map
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Problem Statement
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Google Solution Challenge 2026 — Problem 5: Smart Resource Allocation
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Connecting volunteers to NGOs efficiently across India using skill-based and location-based matching.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Team
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+NextNode
