@@ -27,6 +27,7 @@ export default function VolunteerLayout() {
   const [availableNeeds, setAvailableNeeds] = useState<any[]>([]);
   const [volunteerSkills, setVolunteerSkills] = useState<string[]>([]);
   const [myAssignments, setMyAssignments] = useState<any[]>([]);
+  const [assignmentNeeds, setAssignmentNeeds] = useState<{[key: string]: any}>({});
   
   // Fetch needs from Firestore (filtered by volunteer capabilities)
   const fetchNeeds = async () => {
@@ -71,6 +72,38 @@ export default function VolunteerLayout() {
   useEffect(() => {
     console.log('volunteerSkills state updated:', volunteerSkills);
   }, [volunteerSkills]);
+
+  // Fetch need details for assignments
+  useEffect(() => {
+    const fetchNeedDetails = async () => {
+      const uniqueNeedIds = [...new Set(myAssignments.map(a => a.needId).filter(Boolean))];
+      
+      if (uniqueNeedIds.length === 0) return;
+
+      const needPromises = uniqueNeedIds.map(async (needId) => {
+        const needDoc = doc(db, 'needs', needId);
+        const needSnapshot = await getDoc(needDoc);
+        return {
+          needId,
+          needData: needSnapshot.exists() ? needSnapshot.data() : null
+        };
+      });
+
+      const needDetails = await Promise.all(needPromises);
+      const needsMap: {[key: string]: any} = {};
+      
+      needDetails.forEach(({ needId, needData }) => {
+        if (needData) {
+          needsMap[needId] = needData;
+        }
+      });
+
+      setAssignmentNeeds(needsMap);
+      console.log('📄 Fetched need details for assignments:', needsMap);
+    };
+
+    fetchNeedDetails();
+  }, [myAssignments]);
 
   // Fetch volunteer assignments from Firestore with proper auth state handling
   useEffect(() => {
@@ -703,13 +736,15 @@ export default function VolunteerLayout() {
                     <p className="text-gray-500">No assignments found. Apply for tasks to see them here.</p>
                   </div>
                 ) : (
-                  myAssignments.map((assignment) => (
+                  myAssignments.map((assignment) => {
+                    const needDetails = assignmentNeeds[assignment.needId];
+                    return (
                     <div key={assignment.id} className="bg-white border border-gray-200 rounded-lg p-6 card-animate">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h4 className="font-semibold text-gray-900">{assignment.needTitle || assignment.title || 'Untitled Task'}</h4>
+                          <h4 className="font-semibold text-gray-900">{assignment.needTitle || needDetails?.title || 'Untitled Task'}</h4>
                           <p className="text-sm text-gray-500">
-                            Due: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'No due date'}
+                            Due: {needDetails?.dueDate ? new Date(needDetails.dueDate).toLocaleDateString() : assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'No due date'}
                           </p>
                         </div>
                         <span className={`px-2 py-1 text-xs rounded-full ${
@@ -722,8 +757,23 @@ export default function VolunteerLayout() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-4">
-                        {assignment.description || 'No description available'}
+                        {needDetails?.description || assignment.description || 'No description available'}
                       </p>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-4">
+                          <span className="text-sm text-gray-500">
+                            Location: {needDetails?.city || 'Unknown'}
+                          </span>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            needDetails?.urgency === 'critical' ? 'bg-red-100 text-red-800' :
+                            needDetails?.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
+                            needDetails?.urgency === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {needDetails?.urgency || 'Normal'} urgency
+                          </span>
+                        </div>
+                      </div>
                       <div className="flex gap-2">
                         <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleViewTaskDetails(assignment)}>
                           View Details
@@ -739,7 +789,8 @@ export default function VolunteerLayout() {
                         )}
                       </div>
                     </div>
-                  ))
+                  );
+                })
                 )}
               </div>
             </div>
