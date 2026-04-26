@@ -1021,26 +1021,7 @@ export default function VolunteerLayout() {
                 </div>
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h4 className="font-semibold text-gray-900 mb-4">Previous Reports</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center p-3 border border-gray-200 rounded">
-                    <div>
-                      <p className="font-medium text-gray-900">Week of April 1-7, 2024</p>
-                      <p className="text-sm text-gray-500">8 hours, 2 tasks completed</p>
-                    </div>
-                    <Button size="sm" variant="outline">View</Button>
-                  </div>
-                  <div className="flex justify-between items-center p-3 border border-gray-200 rounded">
-                    <div>
-                      <p className="font-medium text-gray-900">Week of March 25-31, 2024</p>
-                      <p className="text-sm text-gray-500">10 hours, 3 tasks completed</p>
-                    </div>
-                    <Button size="sm" variant="outline">View</Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+                          </div>
           )}
 
           {activeTab === 'map' && (
