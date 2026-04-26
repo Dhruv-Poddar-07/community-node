@@ -74,6 +74,9 @@ export default function VolunteerLayout() {
   // Fetch volunteer assignments from Firestore
   useEffect(() => {
     if (user?.id) {
+      console.log('🔍 Fetching assignments for user ID:', user.id);
+      console.log('👤 User object:', user);
+      
       const assignmentsCollection = collection(db, 'assignments');
       const q = query(assignmentsCollection, where('volunteerId', '==', user.id));
       
@@ -82,10 +85,20 @@ export default function VolunteerLayout() {
           id: doc.id, 
           ...doc.data() 
         }));
+        
+        console.log('📋 Assignments query results:', {
+          query: `volunteerId == ${user.id}`,
+          resultsCount: assignmentsData.length,
+          assignments: assignmentsData
+        });
+        
         setMyAssignments(assignmentsData);
       });
       
       return () => unsubscribe();
+    } else {
+      console.log('❌ No user.id available for fetching assignments');
+      console.log('👤 User object:', user);
     }
   }, [user?.id]);
 
