@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Button } from '../components/ui/button';
 import NotificationUI from '../components/ui/notification';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { 
   Home, 
@@ -84,6 +84,23 @@ export default function VolunteerLayout() {
     }
   }, [user?.id]);
 
+  // Fetch volunteer skills from Firestore document
+  useEffect(() => {
+    if (volunteer?.id) {
+      const volunteerDoc = doc(db, 'volunteers', volunteer.id);
+      getDoc(volunteerDoc).then((docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const volunteerData = docSnapshot.data();
+          if (volunteerData?.skills && Array.isArray(volunteerData.skills)) {
+            setVolunteerSkills(volunteerData.skills);
+          }
+        }
+      }).catch((error) => {
+        console.error('Error fetching volunteer skills:', error);
+      });
+    }
+  }, [volunteer?.id]);
+
   // Initial fetch of needs
   useEffect(() => {
     fetchNeeds();
@@ -146,6 +163,104 @@ export default function VolunteerLayout() {
     
     const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
     return `${startOfWeek.toLocaleDateString('en-US', options)}-${endOfWeek.toLocaleDateString('en-US', options)}, ${now.getFullYear()}`;
+  };
+
+  const getRecentActivities = () => {
+    // Get recent activities from assignments
+    const recentAssignments = [...myAssignments]
+      .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 3); // Get last 3 activities
+
+    const activities = recentAssignments.map((assignment: any) => {
+      const date = new Date(assignment.createdAt || Date.now());
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      let timeAgo = 'Just now';
+      if (diffDays === 1) timeAgo = '1 day ago';
+      else if (diffDays > 1) timeAgo = `${diffDays} days ago`;
+      else if (diffDays === 0) {
+        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+        if (diffHours === 1) timeAgo = '1 hour ago';
+        else if (diffHours > 1) timeAgo = `${diffHours} hours ago`;
+      }
+
+      return {
+        title: assignment.status === 'completed' ? 'Completed assignment' : 'Applied to',
+        description: assignment.title || 'Task',
+        location: assignment.city || 'Unknown',
+        timeAgo
+      };
+    });
+
+    // Add profile update activity if skills were updated recently
+    if (volunteerSkills.length > 0) {
+      activities.push({
+        title: 'Profile updated',
+        description: 'Added new skills',
+        location: 'Profile',
+        timeAgo: '1 week ago'
+      });
+    }
+
+    return activities;
+  };
+
+  const getImpactTimeline = () => {
+    const completedAssignments = myAssignments.filter((a: any) => a.status === 'completed');
+    const milestones = [];
+    
+    // First assignment milestone
+    if (completedAssignments.length > 0) {
+      const firstAssignment = completedAssignments.reduce((earliest: any, current: any) => 
+        new Date(current.createdAt || 0).getTime() < new Date(earliest.createdAt || 0).getTime() ? earliest : current
+      );
+      
+      milestones.push({
+        number: 1,
+        title: 'First Assignment Completed',
+        description: firstAssignment.title || 'Task',
+        date: new Date(firstAssignment.createdAt || Date.now()).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        color: 'green'
+      });
+    }
+
+    // Badge milestone (5 tasks)
+    if (getCompletedTasksCount() >= 5) {
+      milestones.push({
+        number: 5,
+        title: 'Contributor Badge Earned',
+        description: `${getCompletedTasksCount()} tasks completed`,
+        date: new Date().toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        color: 'blue'
+      });
+    }
+
+    // Hours milestone (25 hours)
+    if (getTotalHoursFromAssignments() >= 25) {
+      milestones.push({
+        number: 25,
+        title: '25 Hours Milestone',
+        description: 'Dedicated service',
+        date: new Date().toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        color: 'purple'
+      });
+    }
+
+    return milestones;
   };
 
   const menuItems = [
@@ -498,27 +613,23 @@ export default function VolunteerLayout() {
               <div className="bg-white border border-gray-200 rounded-lg p-6 mt-6">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h4>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Applied to: Tutoring Program</p>
-                      <p className="text-xs text-gray-500">Mumbai</p>
+                  {getRecentActivities().map((activity, index) => (
+                    <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{activity.title}: {activity.description}</p>
+                        <p className="text-xs text-gray-500">{activity.location}</p>
+                      </div>
+                      <span className="text-xs text-gray-500">{activity.timeAgo}</span>
                     </div>
-                    <span className="text-xs text-gray-500">2 hours ago</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Completed assignment</p>
-                      <p className="text-xs text-gray-500">Flood Relief - Patna</p>
+                  ))}
+                  {getRecentActivities().length === 0 && (
+                    <div className="flex items-center justify-between py-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">No recent activity</p>
+                        <p className="text-xs text-gray-500">Start applying for tasks to see your activity here</p>
+                      </div>
                     </div>
-                    <span className="text-xs text-gray-500">2 days ago</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Profile updated</p>
-                      <p className="text-xs text-gray-500">Added new skills</p>
-                    </div>
-                    <span className="text-xs text-gray-500">1 week ago</span>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -605,43 +716,41 @@ export default function VolunteerLayout() {
               <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Impact Timeline</h4>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-green-600 font-bold">1</span>
+                  {getImpactTimeline().map((milestone, index) => (
+                    <div key={index} className="flex items-center gap-4">
+                      <div className={`w-12 h-12 bg-${milestone.color}-100 rounded-full flex items-center justify-center`}>
+                        <span className={`text-${milestone.color}-600 font-bold`}>{milestone.number}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{milestone.title}</p>
+                        <p className="text-sm text-gray-500">{milestone.date} - {milestone.description}</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">First Assignment Completed</p>
-                      <p className="text-sm text-gray-500">March 15, 2024 - Storytelling for Kids</p>
+                  ))}
+                  {getImpactTimeline().length === 0 && (
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-gray-600 font-bold">0</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">No milestones yet</p>
+                        <p className="text-sm text-gray-500">Complete assignments to earn milestones</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-bold">5</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">Contributor Badge Earned</p>
-                      <p className="text-sm text-gray-500">March 28, 2024 - 5 tasks completed</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                      <span className="text-purple-600 font-bold">25</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">25 Hours Milestone</p>
-                      <p className="text-sm text-gray-500">April 8, 2024 - Dedicated service</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Skills Utilized</h4>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">Teaching</span>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">First Aid</span>
-                  <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">Storytelling</span>
-                  <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">Digital Literacy</span>
+                  {volunteerSkills.length > 0 ? (
+                    volunteerSkills.map((skill) => (
+                      <span key={skill} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{skill}</span>
+                    ))
+                  ) : (
+                    <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">No skills added yet</span>
+                  )}
                 </div>
               </div>
             </div>
