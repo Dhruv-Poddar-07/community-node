@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Button } from '../components/ui/button';
 import NotificationUI from '../components/ui/notification';
-import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
 import { 
@@ -406,35 +406,37 @@ export default function VolunteerLayout() {
         return;
       }
 
-      // Create actual assignment via API
-      const response = await fetch('/api/assignments/accept', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          needId: taskId,
-          volunteerId: volunteer?.id || 2,
-        }),
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        await response.json();
-        
-        // Add to applied tasks list
-        setAppliedTasks(prev => [...prev, taskId]);
-        
-        // Show success notification
-        addNotification(`Successfully applied and assigned to task: ${task.title}!`, 'success');
-        
-        // Update task status in local state (remove from available)
-        setAvailableNeeds(prev => prev.filter(need => need.id !== taskId));
-        
-      } else {
-        const errorData = await response.json();
-        addNotification(errorData.error || 'Failed to apply for task', 'error');
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        addNotification('Please log in to apply for tasks', 'error');
+        return;
       }
+
+      // Create assignment document directly in Firestore
+      const assignmentsCollection = collection(db, 'assignments');
+      const assignmentData = {
+        volunteerId: auth.currentUser.uid,
+        volunteerName: user?.name || 'Unknown Volunteer',
+        volunteerEmail: user?.email || '',
+        needId: task.id,
+        needTitle: task.title,
+        status: 'pending',
+        appliedDate: Timestamp.now(),
+        assignedDate: Timestamp.now()
+      };
+
+      const docRef = await addDoc(assignmentsCollection, assignmentData);
+      console.log('Assignment created with ID:', docRef.id);
+      
+      // Add to applied tasks list
+      setAppliedTasks(prev => [...prev, taskId]);
+      
+      // Show success notification
+      addNotification(`Successfully applied for task: ${task.title}!`, 'success');
+      
+      // Update task status in local state (remove from available)
+      setAvailableNeeds(prev => prev.filter(need => need.id !== taskId));
+      
     } catch (error) {
       console.error('Error applying for task:', error);
       addNotification('Failed to apply for task. Please try again.', 'error');
@@ -449,28 +451,33 @@ export default function VolunteerLayout() {
 
   const handleAcceptTask = async (task: any) => {
     try {
-      const response = await fetch('/api/assignments/accept', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          needId: task.id,
-          volunteerId: volunteer?.id || 2, // Use demo volunteer ID if not available
-        }),
-      });
-
-      if (response.ok) {
-        await response.json();
-        addNotification(`Task "${task.title}" accepted successfully!`, 'success');
-        
-        setShowTaskDetails(false);
-        // Update applied tasks to prevent re-application
-        setAppliedTasks(prev => [...prev, task.id]);
-      } else {
-        const errorData = await response.json();
-        addNotification(errorData.error || 'Failed to accept task', 'error');
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        addNotification('Please log in to accept tasks', 'error');
+        return;
       }
+
+      // Create assignment document directly in Firestore
+      const assignmentsCollection = collection(db, 'assignments');
+      const assignmentData = {
+        volunteerId: auth.currentUser.uid,
+        volunteerName: user?.name || 'Unknown Volunteer',
+        volunteerEmail: user?.email || '',
+        needId: task.id,
+        needTitle: task.title,
+        status: 'pending',
+        appliedDate: Timestamp.now(),
+        assignedDate: Timestamp.now()
+      };
+
+      const docRef = await addDoc(assignmentsCollection, assignmentData);
+      console.log('Assignment created with ID:', docRef.id);
+      
+      addNotification(`Task "${task.title}" accepted successfully!`, 'success');
+      
+      setShowTaskDetails(false);
+      // Update applied tasks to prevent re-application
+      setAppliedTasks(prev => [...prev, task.id]);
     } catch (error) {
       console.error('Error accepting task:', error);
       addNotification('Failed to accept task. Please try again.', 'error');
