@@ -16,6 +16,60 @@ import {
 } from 'lucide-react';
 import InteractiveMap from '../components/InteractiveMap';
 
+// Print-specific styles
+const printStyles = `
+@media print {
+  /* Hide everything except the report content */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Show only the report content */
+  .print-report,
+  .print-report * {
+    visibility: visible;
+  }
+  
+  /* Position report content at top of page */
+  .print-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+  }
+  
+  /* Remove margins and backgrounds for printing */
+  body {
+    margin: 0;
+    background: white;
+  }
+  
+  /* Ensure text is black for printing */
+  .print-report * {
+    color: black !important;
+  }
+  
+  /* Hide buttons and interactive elements */
+  .print-report button,
+  .print-report input,
+  .print-report textarea {
+    display: none;
+  }
+  
+  /* Show textarea content as text */
+  .print-report .print-textarea-content::after {
+    content: attr(data-content);
+    white-space: pre-wrap;
+    display: block;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 10px 0;
+  }
+}
+`;
+
 export default function VolunteerLayout() {
   const { user, volunteer, logout } = useAuth();
   const { addNotification, notifications, removeNotification } = useNotifications();
@@ -28,6 +82,17 @@ export default function VolunteerLayout() {
   const [volunteerSkills, setVolunteerSkills] = useState<string[]>([]);
   const [myAssignments, setMyAssignments] = useState<any[]>([]);
   const [assignmentNeeds, setAssignmentNeeds] = useState<{[key: string]: any}>({});
+
+  // Inject print styles into document
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = printStyles;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
   
   // Fetch needs from Firestore (filtered by volunteer capabilities)
   const fetchNeeds = async () => {
@@ -425,8 +490,76 @@ export default function VolunteerLayout() {
   };
 
   const handleDownloadPDF = () => {
-    // In a real application, this would generate and download a PDF
-    addNotification('PDF download functionality coming soon! This would generate a weekly report PDF with your volunteer activities, hours logged, and completed tasks.', 'info');
+    // Create a printable version of the weekly report
+    const weekRange = getCurrentWeekRange();
+    const totalHours = getTotalHoursFromAssignments();
+    const completedTasks = getCompletedTasksCount();
+    const peopleHelped = getPeopleHelped();
+    const activities = getRecentActivities();
+    
+    // Get the current reflection and goals values from the textareas
+    const reflectionTextarea = document.querySelector('textarea[placeholder*="Reflect on your volunteer experience"]') as HTMLTextAreaElement;
+    const goalsTextarea = document.querySelector('textarea[placeholder*="Set your goals for the upcoming week"]') as HTMLTextAreaElement;
+    
+    const reflectionText = reflectionTextarea?.value || 'No reflection provided.';
+    const goalsText = goalsTextarea?.value || 'No goals set.';
+    
+    // Create printable report content
+    const printContent = `
+      <div class="print-report">
+        <h1 style="text-align: center; margin-bottom: 30px;">Weekly Volunteer Report</h1>
+        
+        <div style="margin-bottom: 30px;">
+          <h2>Volunteer Information</h2>
+          <p><strong>Name:</strong> ${user?.name || 'Unknown'}</p>
+          <p><strong>Week:</strong> ${weekRange}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h2>Summary</h2>
+          <p><strong>Total Hours:</strong> ${totalHours}</p>
+          <p><strong>Tasks Completed:</strong> ${completedTasks}</p>
+          <p><strong>People Helped:</strong> ${peopleHelped}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h2>Activities</h2>
+          ${activities.length > 0 ? activities.map(activity => 
+            `<p style="margin-bottom: 10px;">• <strong>${activity.title}:</strong> ${activity.description} (${activity.location}) - ${activity.timeAgo}</p>`
+          ).join('') : '<p>No activities recorded this week.</p>'}
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h2>Reflection</h2>
+          <div class="print-textarea-content" data-content="${reflectionText.replace(/"/g, '&quot;')}"></div>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h2>Goals for Next Week</h2>
+          <div class="print-textarea-content" data-content="${goalsText.replace(/"/g, '&quot;')}"></div>
+        </div>
+        
+        <div style="margin-top: 50px; text-align: center; color: #666;">
+          <p>Generated on ${new Date().toLocaleDateString()}</p>
+        </div>
+      </div>
+    `;
+    
+    // Create a temporary div to hold the print content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = printContent;
+    tempDiv.className = 'print-report';
+    document.body.appendChild(tempDiv);
+    
+    // Trigger print dialog
+    window.print();
+    
+    // Remove the temporary div after printing
+    setTimeout(() => {
+      document.body.removeChild(tempDiv);
+    }, 100);
+    
+    addNotification('Print dialog opened. Save as PDF to download your report.', 'success');
   };
 
   // Handle skill changes in profile
