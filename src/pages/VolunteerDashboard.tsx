@@ -140,6 +140,15 @@ export default function VolunteerLayout() {
   const [myAssignments, setMyAssignments] = useState<any[]>([]);
   const [assignmentNeeds, setAssignmentNeeds] = useState<{[key: string]: any}>({});
 
+  // Profile form state
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    phone: '',
+    city: 'Mumbai',
+    specialty: '',
+    availability: 'Weekends'
+  });
+
   // Inject print styles into document
   useEffect(() => {
     const styleElement = document.createElement('style');
@@ -150,6 +159,55 @@ export default function VolunteerLayout() {
       document.head.removeChild(styleElement);
     };
   }, []);
+
+  // Fetch user profile from Firestore on component mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        if (!auth.currentUser) {
+          console.log('No authenticated user found');
+          return;
+        }
+
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          console.log('Fetched user profile:', userData);
+          
+          // Update profile form state
+          setProfileForm({
+            name: userData.name || user?.name || '',
+            phone: userData.phone || user?.phone || '',
+            city: userData.city || 'Mumbai',
+            specialty: userData.specialty || '',
+            availability: userData.availability || 'Weekends'
+          });
+          
+          // Update volunteer skills
+          if (userData.skills && Array.isArray(userData.skills)) {
+            setVolunteerSkills(userData.skills);
+          }
+        } else {
+          console.log('No user document found, using defaults');
+          // Set defaults from auth context
+          setProfileForm({
+            name: user?.name || '',
+            phone: user?.phone || '',
+            city: 'Mumbai',
+            specialty: '',
+            availability: 'Weekends'
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        addNotification('Failed to load profile data', 'error');
+      }
+    };
+
+    fetchUserProfile();
+  }, [user, auth.currentUser]);
   
   // Fetch needs from Firestore (filtered by volunteer capabilities)
   const fetchNeeds = async () => {
@@ -542,10 +600,48 @@ export default function VolunteerLayout() {
   };
 
   
-  const handleSaveProfile = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Here you would typically save the profile data to backend
-    addNotification('Profile saved successfully!', 'success');
+    
+    try {
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        addNotification('Please log in to save profile', 'error');
+        return;
+      }
+
+      // Get form data
+      const formData = new FormData(e.currentTarget);
+      const profileData = {
+        name: formData.get('name') as string || profileForm.name,
+        phone: formData.get('phone') as string || profileForm.phone,
+        city: formData.get('city') as string || profileForm.city,
+        specialty: formData.get('specialty') as string || profileForm.specialty,
+        availability: formData.get('availability') as string || profileForm.availability,
+        skills: volunteerSkills,
+        updatedAt: Timestamp.now()
+      };
+
+      // Update user document in Firestore
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userDocRef, profileData);
+      
+      console.log('Profile updated successfully:', profileData);
+      addNotification('Profile updated successfully!', 'success');
+      
+      // Update local state
+      setProfileForm({
+        name: profileData.name,
+        phone: profileData.phone,
+        city: profileData.city,
+        specialty: profileData.specialty,
+        availability: profileData.availability
+      });
+      
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      addNotification('Failed to save profile. Please try again.', 'error');
+    }
   };
 
   const handleCancelProfile = () => {
@@ -1070,7 +1166,9 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                     <input
                       type="text"
-                      defaultValue={user?.name || volunteer?.name || ''}
+                      name="name"
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -1078,7 +1176,7 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <input
                       type="email"
-                      defaultValue={user?.email || ''}
+                      value={user?.email || ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       readOnly
                     />
@@ -1087,15 +1185,19 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                     <input
                       type="tel"
-                      defaultValue={user?.phone || ''}
+                      name="phone"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
                     <select 
+                      name="city"
+                      value={profileForm.city}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, city: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      defaultValue={volunteer?.city || 'Mumbai'}
                     >
                       <option value="Mumbai">Mumbai</option>
                       <option value="Delhi">Delhi</option>
@@ -1116,7 +1218,9 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
                     <input
                       type="text"
-                      defaultValue={volunteer?.specialty || ''}
+                      name="specialty"
+                      value={profileForm.specialty}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, specialty: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -1124,7 +1228,9 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Availability</label>
                     <input
                       type="text"
-                      defaultValue={volunteer?.availability || 'Weekends'}
+                      name="availability"
+                      value={profileForm.availability}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, availability: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
