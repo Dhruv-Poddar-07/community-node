@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Button } from '../components/ui/button';
 import NotificationUI from '../components/ui/notification';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import { 
   Home, 
   TrendingUp, 
@@ -23,6 +25,7 @@ export default function VolunteerLayout() {
   const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [availableNeeds, setAvailableNeeds] = useState<any[]>([]);
   const [volunteerSkills, setVolunteerSkills] = useState<string[]>([]);
+  const [myAssignments, setMyAssignments] = useState<any[]>([]);
   
   // Fetch needs from API (filtered by volunteer capabilities)
   const fetchNeeds = async () => {
@@ -63,6 +66,24 @@ export default function VolunteerLayout() {
     console.log('volunteerSkills state updated:', volunteerSkills);
   }, [volunteerSkills]);
 
+  // Fetch volunteer assignments from Firestore
+  useEffect(() => {
+    if (user?.id) {
+      const assignmentsCollection = collection(db, 'assignments');
+      const q = query(assignmentsCollection, where('volunteerId', '==', user.id));
+      
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const assignmentsData = querySnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data() 
+        }));
+        setMyAssignments(assignmentsData);
+      });
+      
+      return () => unsubscribe();
+    }
+  }, [user?.id]);
+
   // Initial fetch of needs
   useEffect(() => {
     fetchNeeds();
@@ -75,6 +96,57 @@ export default function VolunteerLayout() {
       getSkillMatchedTasks();
     }
   }, [availableNeeds, volunteerSkills]);
+
+  // Calculate real stats from Firestore data
+  const getTotalHoursFromAssignments = () => {
+    const completedAssignments = myAssignments.filter((a: any) => a.status === 'completed');
+    return completedAssignments.reduce((total: number, assignment: any) => {
+      // Assuming each assignment has an estimatedHours field or default to 3 hours
+      return total + (assignment.estimatedHours || 3);
+    }, 0);
+  };
+
+  const getCompletedTasksCount = () => {
+    return myAssignments.filter((a: any) => a.status === 'completed').length;
+  };
+
+  const getVolunteerBadge = () => {
+    const completedTasks = getCompletedTasksCount();
+    if (completedTasks >= 20) return 'Expert';
+    if (completedTasks >= 10) return 'Advanced';
+    if (completedTasks >= 5) return 'Intermediate';
+    if (completedTasks >= 1) return 'Beginner';
+    return 'Newcomer';
+  };
+
+  const getAverageRating = () => {
+    const completedAssignments = myAssignments.filter((a: any) => a.status === 'completed' && a.rating);
+    if (completedAssignments.length === 0) return 'N/A';
+    
+    const totalRating = completedAssignments.reduce((total: number, assignment: any) => {
+      return total + (assignment.rating || 0);
+    }, 0);
+    
+    return (totalRating / completedAssignments.length).toFixed(1);
+  };
+
+  const getPeopleHelped = () => {
+    const completedTasks = getCompletedTasksCount();
+    // Estimate people helped based on completed tasks (more realistic than fixed multiplier)
+    return completedTasks * 8; // Average 8 people helped per completed task
+  };
+
+  const getCurrentWeekRange = () => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday
+    
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    return `${startOfWeek.toLocaleDateString('en-US', options)}-${endOfWeek.toLocaleDateString('en-US', options)}, ${now.getFullYear()}`;
+  };
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -347,26 +419,26 @@ export default function VolunteerLayout() {
               <div className="grid grid-cols-4 gap-4 mb-6">
                   <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-2">
                     <h4 className="text-sm font-medium text-gray-600 mb-1">Hours Logged</h4>
-                    <div className="text-2xl font-bold text-gray-900">{volunteer?.hoursLogged || 0}</div>
+                    <div className="text-2xl font-bold text-gray-900">{getTotalHoursFromAssignments()}</div>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-3">
                     <h4 className="text-sm font-medium text-gray-600 mb-1">Tasks Done</h4>
-                    <div className="text-2xl font-bold text-gray-900">{volunteer?.tasksCompleted || 0}</div>
+                    <div className="text-2xl font-bold text-gray-900">{getCompletedTasksCount()}</div>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-4">
                     <h4 className="text-sm font-medium text-gray-600 mb-1">Badge</h4>
-                    <div className="text-2xl font-bold text-gray-900 capitalize">{volunteer?.badge || 'Newcomer'}</div>
+                    <div className="text-2xl font-bold text-gray-900 capitalize">{getVolunteerBadge()}</div>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-lg p-4 card-hover-lift dashboard-enter-scale stagger-5">
                     <h4 className="text-sm font-medium text-gray-600 mb-1">Average Rating</h4>
                     <div className="flex items-center">
                       <div className="text-2xl font-bold text-gray-900 mr-2">
-                        {volunteer?.averageRating || 'N/A'}
+                        {getAverageRating()}
                       </div>
-                      {volunteer?.averageRating && (
+                      {getAverageRating() && (
                         <div className="flex text-yellow-400">
                           {[...Array(5)].map((_, i) => (
-                            <span key={i} className={i < Math.floor(volunteer.averageRating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
+                            <span key={i} className={i < Math.floor(getAverageRating() || 0) ? 'text-yellow-400' : 'text-gray-300'}>
                               ★
                             </span>
                           ))}
@@ -376,7 +448,7 @@ export default function VolunteerLayout() {
                   </div>
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
                     <h4 className="text-sm font-medium text-gray-600 mb-1">People Helped</h4>
-                    <div className="text-2xl font-bold text-gray-900">{(volunteer?.tasksCompleted || 0) * 12}</div>
+                    <div className="text-2xl font-bold text-gray-900">{getPeopleHelped()}</div>
                   </div>
                 </div>
 
@@ -513,19 +585,19 @@ export default function VolunteerLayout() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
-                  <div className="text-4xl font-bold text-green-600 mb-2">25</div>
+                  <div className="text-4xl font-bold text-green-600 mb-2">{getTotalHoursFromAssignments()}</div>
                   <p className="text-sm text-gray-600">Hours Logged</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
-                  <div className="text-4xl font-bold text-blue-600 mb-2">8</div>
+                  <div className="text-4xl font-bold text-blue-600 mb-2">{getCompletedTasksCount()}</div>
                   <p className="text-sm text-gray-600">Tasks Completed</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
-                  <div className="text-4xl font-bold text-purple-600 mb-2">96</div>
+                  <div className="text-4xl font-bold text-purple-600 mb-2">{getPeopleHelped()}</div>
                   <p className="text-sm text-gray-600">People Helped</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
-                  <div className="text-4xl font-bold text-orange-600 mb-2">4.8</div>
+                  <div className="text-4xl font-bold text-orange-600 mb-2">{getAverageRating()}</div>
                   <p className="text-sm text-gray-600">Average Rating</p>
                 </div>
               </div>
@@ -586,7 +658,7 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                     <input
                       type="text"
-                      defaultValue="Demo Volunteer"
+                      defaultValue={user?.name || volunteer?.name || ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -594,41 +666,45 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <input
                       type="email"
-                      defaultValue="volunteer@demo.com"
+                      defaultValue={user?.email || ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      readOnly
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                     <input
                       type="tel"
-                      defaultValue="+91 9876543211"
+                      defaultValue={volunteer?.phone || user?.phone || ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                      <option>Mumbai</option>
-                      <option>Delhi</option>
-                      <option>Bangalore</option>
-                      <option>Chennai</option>
-                      <option>Kolkata</option>
-                      <option>Hyderabad</option>
-                      <option>Pune</option>
-                      <option>Jaipur</option>
-                      <option>Lucknow</option>
-                      <option>Patna</option>
-                      <option>Kochi</option>
-                      <option>Ahmedabad</option>
-                      <option>Surat</option>
+                    <select 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      defaultValue={volunteer?.city || user?.city || 'Mumbai'}
+                    >
+                      <option value="Mumbai">Mumbai</option>
+                      <option value="Delhi">Delhi</option>
+                      <option value="Bangalore">Bangalore</option>
+                      <option value="Chennai">Chennai</option>
+                      <option value="Kolkata">Kolkata</option>
+                      <option value="Hyderabad">Hyderabad</option>
+                      <option value="Pune">Pune</option>
+                      <option value="Jaipur">Jaipur</option>
+                      <option value="Lucknow">Lucknow</option>
+                      <option value="Patna">Patna</option>
+                      <option value="Kochi">Kochi</option>
+                      <option value="Ahmedabad">Ahmedabad</option>
+                      <option value="Surat">Surat</option>
                     </select>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
                     <input
                       type="text"
-                      defaultValue="Education"
+                      defaultValue={volunteer?.specialty || ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -636,7 +712,7 @@ export default function VolunteerLayout() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Availability</label>
                     <input
                       type="text"
-                      defaultValue="Weekends"
+                      defaultValue={volunteer?.availability || 'Weekends'}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -672,7 +748,7 @@ export default function VolunteerLayout() {
               
               <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-semibold text-gray-900">Week of April 8-14, 2024</h4>
+                  <h4 className="font-semibold text-gray-900">Week of {getCurrentWeekRange()}</h4>
                   <Button className="bg-green-600 hover:bg-green-700" onClick={handleDownloadPDF}>Download PDF</Button>
                 </div>
                 
@@ -682,24 +758,29 @@ export default function VolunteerLayout() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Hours:</span>
-                        <span className="font-medium">12 hours</span>
+                        <span className="font-medium">{getTotalHoursFromAssignments()} hours</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Tasks Completed:</span>
-                        <span className="font-medium">3 tasks</span>
+                        <span className="font-medium">{getCompletedTasksCount()} tasks</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">People Helped:</span>
-                        <span className="font-medium">24 people</span>
+                        <span className="font-medium">{getPeopleHelped()} people</span>
                       </div>
                     </div>
                   </div>
                   <div>
                     <h5 className="font-medium text-gray-900 mb-3">Activities</h5>
                     <ul className="space-y-1 text-sm text-gray-600">
-                      <li>Completed tutoring program (6 hours)</li>
-                      <li>Assisted in digital literacy workshop (4 hours)</li>
-                      <li>Participated in community cleanup (2 hours)</li>
+                      {myAssignments.filter((a: any) => a.status === 'completed').slice(0, 5).map((assignment: any, index: number) => (
+                        <li key={assignment.id}>
+                          Completed {assignment.title || 'Task'} ({assignment.estimatedHours || 3} hours)
+                        </li>
+                      ))}
+                      {myAssignments.filter((a: any) => a.status === 'completed').length === 0 && (
+                        <li>No completed activities yet</li>
+                      )}
                     </ul>
                   </div>
                 </div>
