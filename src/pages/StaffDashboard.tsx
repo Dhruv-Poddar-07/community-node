@@ -515,7 +515,10 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setSidebarOpen(false);
+                  }}
                   className={`w-full sidebar-item flex items-center space-x-3 animate-pulse-hover ${
                     activeTab === item.id ? 'active' : ''
                   }`}
@@ -534,7 +537,10 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setSidebarOpen(false);
+                  }}
                   className={`w-full sidebar-item flex items-center space-x-3 animate-pulse-hover ${
                     activeTab === item.id ? 'active' : ''
                   }`}
@@ -553,7 +559,10 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setSidebarOpen(false);
+                  }}
                   className={`w-full sidebar-item flex items-center space-x-3 animate-pulse-hover ${
                     activeTab === item.id ? 'active' : ''
                   }`}
