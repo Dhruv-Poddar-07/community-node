@@ -125,6 +125,38 @@ const printStyles = `
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Sidebar transitions and overlay */
+.sidebar-slide-in {
+  transform: translateX(0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-slide-out {
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-overlay-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
 `;
 
 export default function VolunteerLayout() {
@@ -789,8 +821,16 @@ export default function VolunteerLayout() {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="sidebar-overlay sidebar-overlay-visible"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} sidebar sidebar-animate transition-all duration-300 flex flex-col`}>
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} sidebar sidebar-animate transition-all duration-300 flex flex-col ${sidebarOpen ? 'sidebar-slide-in' : 'sidebar-slide-out'}`}>
         {/* Logo */}
         <div className="p-4 border-b border-gray-700">
           <div className="flex items-center space-x-3">
