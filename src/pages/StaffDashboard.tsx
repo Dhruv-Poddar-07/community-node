@@ -11,7 +11,6 @@ import {
   getAllVolunteers,
   getAllNeeds,
   getAllAssignments,
-  getRecentAssignments,
   createNeed,
   createAssignment
 } from '../services/firestoreService';
@@ -107,15 +106,13 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [volunteersData, needsData, assignmentsData] = await Promise.all([
+        const [volunteersData, needsData] = await Promise.all([
           getAllVolunteers(),
-          getAllNeeds(),
-          getRecentAssignments(10)
+          getAllNeeds()
         ]);
 
         setVolunteers(volunteersData);
         setNeeds(needsData);
-        setAssignments(assignmentsData);
 
         // Calculate dashboard stats
         const openNeedsCount = needsData.filter((need: any) => need.status === 'open').length;
@@ -131,16 +128,6 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
           hoursThisWeek: totalHours
         });
 
-        // Format recent activity
-        const activity = assignmentsData.slice(0, 3).map((assignment: any) => ({
-          id: assignment.id,
-          type: assignment.status === 'completed' ? 'completed' : 'assigned',
-          volunteer: assignment.volunteerName || assignment.volunteer || 'Unknown Volunteer',
-          task: assignment.needTitle || assignment.taskTitle || assignment.title || 'Unknown Task',
-          date: assignment.assignedDate?.toDate?.() || new Date(assignment.assignedDate || Date.now())
-        }));
-        setRecentActivity(activity);
-
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -149,6 +136,32 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
     };
 
     fetchDashboardData();
+  }, []);
+
+  // Set up real-time listener for assignments
+  useEffect(() => {
+    const assignmentsCollection = collection(db, 'assignments');
+    const unsubscribe = onSnapshot(assignmentsCollection, (querySnapshot) => {
+      const assignmentsData = querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+      
+      console.log('🔄 Real-time assignments update:', assignmentsData);
+      setAssignments(assignmentsData);
+
+      // Format recent activity
+      const activity = assignmentsData.slice(0, 3).map((assignment: any) => ({
+        id: assignment.id,
+        type: assignment.status === 'completed' ? 'completed' : 'assigned',
+        volunteer: assignment.volunteerName || assignment.volunteer || 'Unknown Volunteer',
+        task: assignment.needTitle || assignment.taskTitle || assignment.title || 'Unknown Task',
+        date: assignment.assignedDate?.toDate?.() || new Date(assignment.assignedDate || Date.now())
+      }));
+      setRecentActivity(activity);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Set up real-time listener for needs to ensure dropdown is always updated
@@ -216,10 +229,6 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
       
       
       addNotification('Assignment started successfully!', 'success');
-      
-      // Refresh assignments data
-      const assignmentsData = await getRecentAssignments(10);
-      setAssignments(assignmentsData);
     } catch (error) {
       addNotification('Failed to start assignment', 'error');
     }
@@ -360,10 +369,6 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
       
 
       await createAssignment(assignmentData);
-      
-      // Refresh assignments data
-      const assignmentsData = await getRecentAssignments(10);
-      setAssignments(assignmentsData);
       
       setShowCreateAssignmentModal(false);
       addNotification('Assignment created successfully!', 'success');
@@ -1069,6 +1074,11 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                           )}
                           {assignment.status === 'active' && (
                             <Button size="sm" variant="outline" onClick={() => handleCompleteAssignment(assignment.id)}>Complete</Button>
+                          )}
+                          {assignment.status === 'completed' && (
+                            <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 mr-2">
+                              Completed
+                            </span>
                           )}
                           {assignment.status === 'completed' && (
                             assignment.rating ? (
@@ -1949,10 +1959,6 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                           
                           addNotification('Rating submitted successfully!', 'success');
                           setShowRatingModal(false);
-                          
-                          // Refresh assignments data to update the Rate button state
-                          const assignmentsData = await getRecentAssignments(10);
-                          setAssignments(assignmentsData);
                         } catch (error) {
                           console.error('❌ Rating error:', error);
                           addNotification('Failed to submit rating', 'error');
