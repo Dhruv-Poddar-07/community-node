@@ -15,7 +15,7 @@ import {
   createNeed,
   createAssignment
 } from '../services/firestoreService';
-import { setDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
+import { setDoc, doc, Timestamp, updateDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { 
   LayoutDashboard, 
@@ -102,7 +102,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
     };
   }, [needs]);
 
-  // Fetch dashboard data from Firestore
+  // Fetch dashboard data from Firestore and set up real-time listeners
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -142,12 +142,27 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
         setRecentActivity(activity);
 
       } catch (error) {
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
+  }, []);
+
+  // Set up real-time listener for needs to ensure dropdown is always updated
+  useEffect(() => {
+    const needsCollection = collection(db, 'needs');
+    const unsubscribe = onSnapshot(needsCollection, (querySnapshot) => {
+      const needsData = querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+      setNeeds(needsData);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Socket functionality removed - using Firebase only
