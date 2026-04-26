@@ -126,15 +126,20 @@ const printStyles = `
   overflow: hidden;
 }
 
-/* Sidebar transitions and overlay */
-.sidebar-slide-in {
-  transform: translateX(0);
+/* Sidebar fixed overlay approach */
+.sidebar-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 16rem;
+  z-index: 50;
+  transform: translateX(-100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.sidebar-slide-out {
-  transform: translateX(-100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.sidebar-open {
+  transform: translateX(0);
 }
 
 .sidebar-overlay {
@@ -145,12 +150,9 @@ const printStyles = `
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 40;
-  transition: opacity 0.3s ease;
-}
-
-.sidebar-overlay-hidden {
   opacity: 0;
   pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
 .sidebar-overlay-visible {
@@ -820,17 +822,15 @@ export default function VolunteerLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50">
       {/* Overlay */}
-      {sidebarOpen && (
-        <div 
-          className="sidebar-overlay sidebar-overlay-visible"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      <div 
+        className={`sidebar-overlay ${sidebarOpen ? 'sidebar-overlay-visible' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
       
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} sidebar sidebar-animate transition-all duration-300 flex flex-col ${sidebarOpen ? 'sidebar-slide-in' : 'sidebar-slide-out'}`}>
+      {/* Sidebar - Fixed Overlay */}
+      <div className={`sidebar sidebar-fixed ${sidebarOpen ? 'sidebar-open' : ''}`}>
         {/* Logo */}
         <div className="p-4 border-b border-gray-700">
           <div className="flex items-center space-x-3">
@@ -854,13 +854,16 @@ export default function VolunteerLayout() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setSidebarOpen(false);
+                  }}
                   className={`w-full sidebar-item flex items-center space-x-3 ${
                     activeTab === item.id ? 'active' : ''
                   }`}
                 >
                   <Icon className="w-5 h-5" />
-                  {sidebarOpen && <span>{item.label}</span>}
+                  <span>{item.label}</span>
                 </button>
               );
             })}
@@ -882,21 +885,22 @@ export default function VolunteerLayout() {
               </div>
             )}
           </div>
-          {sidebarOpen && (
-            <Button
+          <Button
               variant="ghost"
               size="sm"
-              onClick={handleLogout}
+              onClick={() => {
+                handleLogout();
+                setSidebarOpen(false);
+              }}
               className="w-full mt-3 text-gray-300 hover:text-white"
             >
               Sign out
             </Button>
-          )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col w-full">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
