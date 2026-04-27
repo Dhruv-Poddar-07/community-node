@@ -452,7 +452,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
         volunteerId: selectedVolunteer.id,
         volunteerName: selectedVolunteer.name,
         volunteerEmail: selectedVolunteer.email,
-        staffId: 'current_staff', // This should come from current user
+        staffId: user?.id || 'current_staff', // Use actual Firebase Auth UID
         status: 'pending',
         assignedDate: new Date().toISOString(),
         notes: taskData.notes || ''
@@ -894,7 +894,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                             </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden xl:table-cell">
-                            {need.skill || need.requiredSkill || 'Not specified'}
+                            {need.skills?.[0] || need.skill || need.requiredSkill || 'Not specified'}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden lg:table-cell">
                             <span className="text-sm font-medium">
@@ -1221,7 +1221,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                     lat: selectedLocation.lat,
                     lng: selectedLocation.lng,
                     urgency: formData.get('urgency'),
-                    requiredSkill: formData.get('skill'),
+                    skills: [formData.get('skill')],
                     peopleNeeded: parseInt(formData.get('peopleNeeded') as string) || 1,
                     spotsFilledCount: 0
                   };
@@ -1386,7 +1386,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                     category: selectedNeedForEdit.category || 'Community Service',
                     city: formData.get('city'),
                     urgency: formData.get('urgency'),
-                    requiredSkill: formData.get('skill'),
+                    skills: [formData.get('skill')],
                     peopleNeeded: parseInt(formData.get('peopleNeeded') as string) || 1,
                   };
                   handleSubmitEditNeed(updatedNeed);
@@ -1463,7 +1463,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                       <select
                         name="skill"
                         required
-                        defaultValue={selectedNeedForEdit.requiredSkill || selectedNeedForEdit.skill || ''}
+                        defaultValue={selectedNeedForEdit.skills?.[0] || selectedNeedForEdit.requiredSkill || selectedNeedForEdit.skill || ''}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       >
                         <option value="">Select skill</option>

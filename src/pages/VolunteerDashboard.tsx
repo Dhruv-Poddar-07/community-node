@@ -854,7 +854,7 @@ export default function VolunteerLayout() {
   const getMatchScore = (need: any) => {
     if (!volunteerSkills || volunteerSkills.length === 0) return 0;
     
-    const requiredSkill = need.requiredSkill || need.skill;
+    const requiredSkill = need.skills?.[0] || need.requiredSkill || need.skill;
     if (!requiredSkill || requiredSkill === 'General') return 100;
     
     // Check if volunteer has the required skill
@@ -916,8 +916,8 @@ export default function VolunteerLayout() {
       const locationMatch = volunteer?.city && need.city === volunteer.city;
       
       // Check if volunteer has required skills
-      const hasSkill = need.requiredSkill && volunteerSkills.some(skill => 
-        skill.toLowerCase().includes(need.requiredSkill.toLowerCase())
+      const hasSkill = need.skills?.[0] && volunteerSkills.some(skill => 
+        skill.toLowerCase().includes(need.skills[0].toLowerCase())
       );
       
       // Check if there are remaining spots
@@ -1195,7 +1195,7 @@ export default function VolunteerLayout() {
                       </div>
                       <p className="text-sm text-gray-600 mb-3 line-clamp-3 overflow-hidden">{need.description}</p>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <span className="text-sm text-gray-500 truncate">Required: {need.requiredSkill}</span>
+                        <span className="text-sm text-gray-500 truncate">Required: {need.skills?.[0] || need.requiredSkill}</span>
                         <Button 
                           size="sm" 
                           onClick={() => handleApply(need.id)}
@@ -1663,7 +1663,7 @@ export default function VolunteerLayout() {
                         <div className="space-y-3">
                           <div>
                             <span className="text-gray-500 text-sm font-medium">🛠️ Required Skill:</span>
-                            <p className="font-medium text-gray-900 mt-1">{selectedTask.requiredSkill || 'General'}</p>
+                            <p className="font-medium text-gray-900 mt-1">{selectedTask.skills?.[0] || selectedTask.requiredSkill || 'General'}</p>
                           </div>
                           <div>
                             <span className="text-gray-500 text-sm font-medium">📅 Created Date:</span>
@@ -1699,7 +1699,7 @@ export default function VolunteerLayout() {
                       <div className="bg-blue-50 p-4 rounded-lg mb-4">
                         <span className="text-blue-700 text-sm font-medium">ℹ️ Task Information:</span>
                         <div className="mt-2 text-sm text-gray-700">
-                          <p>• This task requires <strong>{selectedTask.requiredSkill || 'general'}</strong> skills</p>
+                          <p>• This task requires <strong>{selectedTask.skills?.[0] || selectedTask.requiredSkill || 'general'}</strong> skills</p>
                           <p>• Location: <strong>{selectedTask.city}</strong></p>
                           <p>• Urgency level: <strong>{selectedTask.urgency || 'medium'}</strong></p>
                           {selectedTask.address && <p>• Address provided for navigation</p>}
