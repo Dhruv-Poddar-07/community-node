@@ -178,6 +178,12 @@ export default function VolunteerLayout() {
   const [assignmentNeeds, setAssignmentNeeds] = useState<{[key: string]: any}>({});
   const [firestoreNotifications, setFirestoreNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Completion modal state
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>('');
+  const [hoursSpent, setHoursSpent] = useState<number>(1);
+  const [peopleHelped, setPeopleHelped] = useState<number>(1);
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
@@ -426,8 +432,8 @@ export default function VolunteerLayout() {
   const getTotalHoursFromAssignments = () => {
     const completedAssignments = myAssignments.filter((a: any) => a.status === 'completed');
     return completedAssignments.reduce((total: number, assignment: any) => {
-      // Assuming each assignment has an estimatedHours field or default to 3 hours
-      return total + (assignment.estimatedHours || 3);
+      // Use real hoursSpent from completed assignments, fallback to estimatedHours or 3
+      return total + (assignment.hoursSpent || assignment.estimatedHours || 3);
     }, 0);
   };
 
@@ -456,9 +462,11 @@ export default function VolunteerLayout() {
   };
 
   const getPeopleHelped = () => {
-    const completedTasks = getCompletedTasksCount();
-    // Estimate people helped based on completed tasks (more realistic than fixed multiplier)
-    return completedTasks * 8; // Average 8 people helped per completed task
+    const completedAssignments = myAssignments.filter((a: any) => a.status === 'completed');
+    return completedAssignments.reduce((total: number, assignment: any) => {
+      // Use real peopleHelped from completed assignments, fallback to estimated calculation
+      return total + (assignment.peopleHelped || 8); // Default to 8 if not specified
+    }, 0);
   };
 
   const getCurrentWeekRange = () => {
@@ -809,10 +817,23 @@ export default function VolunteerLayout() {
   };
 
   // Handle marking assignment as complete
-  const handleMarkComplete = async (assignmentId: string) => {
+  const handleMarkComplete = (assignmentId: string) => {
+    setSelectedAssignmentId(assignmentId);
+    setHoursSpent(1);
+    setPeopleHelped(1);
+    setShowCompletionModal(true);
+  };
+
+  // Handle completion submission
+  const handleSubmitCompletion = async () => {
     try {
+      if (!selectedAssignmentId) {
+        addNotification('No assignment selected', 'error');
+        return;
+      }
+
       // Get assignment details before updating
-      const assignmentDoc = await getDoc(doc(db, 'assignments', assignmentId));
+      const assignmentDoc = await getDoc(doc(db, 'assignments', selectedAssignmentId));
       const assignment = assignmentDoc.data();
       
       if (!assignment) {
@@ -820,11 +841,26 @@ export default function VolunteerLayout() {
         return;
       }
 
-      const assignmentRef = doc(db, 'assignments', assignmentId);
+      const assignmentRef = doc(db, 'assignments', selectedAssignmentId);
       await updateDoc(assignmentRef, {
         status: 'completed',
-        completedAt: new Date()
+        completedAt: Timestamp.now(),
+        hoursSpent: hoursSpent,
+        peopleHelped: peopleHelped
       });
+
+      // Update volunteer's user document with hours and people helped
+      try {
+        const userRef = doc(db, 'users', user?.id || '');
+        await updateDoc(userRef, {
+          hoursLogged: increment(hoursSpent),
+          peopleHelped: increment(peopleHelped)
+        });
+        console.log('Updated volunteer stats:', { hoursSpent, peopleHelped });
+      } catch (userUpdateError) {
+        console.error('Error updating volunteer stats:', userUpdateError);
+        // Don't fail the completion if stats update fails
+      }
 
       // Create notification for staff member
       try {
@@ -842,6 +878,12 @@ export default function VolunteerLayout() {
         console.error('Error creating notification:', notificationError);
         // Don't fail the completion if notification fails
       }
+
+      // Close modal and reset form
+      setShowCompletionModal(false);
+      setSelectedAssignmentId('');
+      setHoursSpent(1);
+      setPeopleHelped(1);
 
       addNotification('Assignment marked as complete!', 'success');
     } catch (error) {
@@ -1724,6 +1766,75 @@ export default function VolunteerLayout() {
               </div>
             </div>
           )}
+
+          {/* Completion Modal */}
+          {showCompletionModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg p-4 lg:p-6 w-full max-w-md mx-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Complete Assignment</h3>
+                  <button 
+                    onClick={() => setShowCompletionModal(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Hours spent on this task
+                    </label>
+                    <input
+                      type="number"
+                      min="0.5"
+                      max="24"
+                      step="0.5"
+                      value={hoursSpent}
+                      onChange={(e) => setHoursSpent(parseFloat(e.target.value) || 1)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="Enter hours spent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Min: 0.5, Max: 24 hours</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Number of people you helped
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1000"
+                      value={peopleHelped}
+                      onChange={(e) => setPeopleHelped(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="Enter number of people helped"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Min: 0, Max: 1000 people</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCompletionModal(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSubmitCompletion}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                  >
+                    Submit & Complete
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </main>
 
         {/* Notification System */}
