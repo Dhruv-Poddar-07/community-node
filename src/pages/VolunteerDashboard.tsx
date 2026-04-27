@@ -12,7 +12,8 @@ import {
   User, 
   FileText, 
   Menu,
-  ClipboardList
+  ClipboardList,
+  Map
 } from 'lucide-react';
 import InteractiveMap from '../components/InteractiveMap';
 
@@ -538,6 +539,7 @@ export default function VolunteerLayout() {
     { id: 'home', label: 'Home', icon: Home },
     { id: 'tasks', label: 'Tasks', icon: ClipboardList },
     { id: 'impact', label: 'Impact', icon: TrendingUp },
+    { id: 'map', label: 'Live Map', icon: Map },
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'report', label: 'Report', icon: FileText },
   ];
@@ -1372,19 +1374,8 @@ export default function VolunteerLayout() {
           )}
 
           {activeTab === 'map' && (
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Map</h3>
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-2">View volunteer opportunities near you. Click on markers for details.</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">My Location</Button>
-                    <Button size="sm" variant="outline">Filter by Distance</Button>
-                    <Button size="sm" variant="outline">Show Available Only</Button>
-                  </div>
-                </div>
-                <InteractiveMap />
-              </div>
+            <div className="w-full h-[calc(100vh-64px)]">
+              <InteractiveMap />
             </div>
           )}
 
