@@ -14,7 +14,7 @@ import {
   createNeed,
   createAssignment
 } from '../services/firestoreService';
-import { setDoc, doc, Timestamp, updateDoc, collection, onSnapshot } from 'firebase/firestore';
+import { setDoc, doc, Timestamp, updateDoc, collection, onSnapshot, addDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { 
   LayoutDashboard, 
@@ -444,7 +444,22 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
       
       addNotification(`Task assigned successfully to ${selectedVolunteer.name}!`, 'success');
       
-      // TODO: Send notification to volunteer (implement notification system)
+      // Create notification for volunteer
+      try {
+        const notificationsCollection = collection(db, 'notifications');
+        await addDoc(notificationsCollection, {
+          userId: selectedVolunteer.id, // Volunteer's Firebase Auth UID
+          title: 'New Task Assigned',
+          message: `You have been assigned to ${selectedNeed.title} in ${selectedNeed.city || 'your area'}. Check your Tasks page.`,
+          type: 'assignment',
+          read: false,
+          createdAt: Timestamp.now()
+        });
+        console.log('Notification created for volunteer:', selectedVolunteer.name);
+      } catch (notificationError) {
+        console.error('Error creating notification:', notificationError);
+        // Don't fail the assignment if notification fails
+      }
       
     } catch (error) {
       console.error('Error assigning task:', error);

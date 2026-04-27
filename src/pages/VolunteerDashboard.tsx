@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Button } from '../components/ui/button';
 import NotificationUI from '../components/ui/notification';
-import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc, addDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
 import { 
@@ -13,7 +13,8 @@ import {
   FileText, 
   Menu,
   ClipboardList,
-  Map
+  Map,
+  Bell
 } from 'lucide-react';
 import InteractiveMap from '../components/InteractiveMap';
 
@@ -174,6 +175,8 @@ export default function VolunteerLayout() {
   const [volunteerSkills, setVolunteerSkills] = useState<string[]>([]);
   const [myAssignments, setMyAssignments] = useState<any[]>([]);
   const [assignmentNeeds, setAssignmentNeeds] = useState<{[key: string]: any}>({});
+  const [firestoreNotifications, setFirestoreNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
@@ -377,6 +380,38 @@ export default function VolunteerLayout() {
   useEffect(() => {
     fetchNeeds();
   }, []);
+
+  // Firestore notifications listener
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const notificationsCollection = collection(db, 'notifications');
+    const q = query(
+      notificationsCollection, 
+      where('userId', '==', auth.currentUser.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const notificationsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setFirestoreNotifications(notificationsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Mark notification as read
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const notificationRef = doc(db, 'notifications', notificationId);
+      await updateDoc(notificationRef, { read: true });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
 
   // Re-run skill matching when needs are loaded
   useEffect(() => {
@@ -918,22 +953,80 @@ export default function VolunteerLayout() {
                 {menuItems.find(item => item.id === activeTab)?.label || 'Home'}
               </h2>
             </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-sm text-gray-500">
-                  {new Date().toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </div>
+            <div className="flex items-center space-x-4">
+              {/* Notification Bell */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <Bell className="w-5 h-5" />
+                  {firestoreNotifications.filter(n => !n.read).length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {firestoreNotifications.filter(n => !n.read).length}
+                    </span>
+                  )}
+                </button>
+                
+                {/* Notification Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="p-4 border-b border-gray-200">
+                      <h3 className="font-semibold text-gray-900">Notifications</h3>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {firestoreNotifications.length === 0 ? (
+                        <div className="p-4 text-gray-500 text-center">
+                          No notifications
+                        </div>
+                      ) : (
+                        firestoreNotifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            onClick={() => markNotificationAsRead(notification.id)}
+                            className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                              !notification.read ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 text-sm">
+                                  {notification.title}
+                                </h4>
+                                <p className="text-gray-600 text-sm mt-1">
+                                  {notification.message}
+                                </p>
+                                <p className="text-gray-400 text-xs mt-2">
+                                  {notification.createdAt?.toDate()?.toLocaleString() || 
+                                   new Date(notification.createdAt?.seconds * 1000).toLocaleString()}
+                                </p>
+                              </div>
+                              {!notification.read && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
+              
+              <div className="text-sm text-gray-500">
+                {new Date().toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </div>
+            </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-hidden">
-          <main className="p-6 content-fade h-full overflow-hidden">
+        <main className="p-6 content-fade h-full overflow-hidden">
             {activeTab === 'home' && (
               <div className="home-fade-in">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
@@ -1506,7 +1599,6 @@ export default function VolunteerLayout() {
           notifications={notifications} 
           onRemove={removeNotification} 
         />
-      </div>
       </div>
     </div>
   );
