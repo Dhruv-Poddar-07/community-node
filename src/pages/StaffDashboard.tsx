@@ -14,7 +14,7 @@ import {
   createNeed,
   createAssignment
 } from '../services/firestoreService';
-import { setDoc, doc, Timestamp, updateDoc, collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { setDoc, doc, Timestamp, updateDoc, collection, onSnapshot, addDoc, increment } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { 
   LayoutDashboard, 
@@ -422,12 +422,13 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
 
       await createAssignment(assignmentData);
 
-      // Update need status to 'assigned'
+      // Update need status to 'assigned' and increment spots filled
       await updateDoc(doc(db, 'needs', selectedNeed.id), {
         status: 'assigned',
         assignedTo: selectedVolunteer.name,
         assignedAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
+        spotsFilledCount: increment(1)
       });
 
       // Refresh data
@@ -781,6 +782,9 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell" style={{width: '13%'}}>
                             Required Skill
                           </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell" style={{width: '12%'}}>
+                            Spots Filled
+                          </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '20%'}}>
                             Actions
                           </th>
@@ -844,6 +848,11 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden xl:table-cell">
                             {need.skill || need.requiredSkill || 'Not specified'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden lg:table-cell">
+                            <span className="text-sm font-medium">
+                              {need.spotsFilledCount || 0}/{need.peopleNeeded || 1}
+                            </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                             <div className="flex flex-col sm:flex-row gap-2">

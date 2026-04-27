@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Button } from '../components/ui/button';
 import NotificationUI from '../components/ui/notification';
-import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc, addDoc, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc, addDoc, Timestamp, orderBy, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
 import { 
@@ -614,6 +614,12 @@ export default function VolunteerLayout() {
       const docRef = await addDoc(assignmentsCollection, assignmentData);
       console.log('Assignment created with ID:', docRef.id);
       
+      // Increment spotsFilledCount on the need
+      const needRef = doc(db, 'needs', task.id);
+      await updateDoc(needRef, {
+        spotsFilledCount: increment(1)
+      });
+      
       // Add to applied tasks list
       setAppliedTasks(prev => [...prev, taskId]);
       
@@ -818,22 +824,6 @@ export default function VolunteerLayout() {
 
   // Skill-based task matching function
   const getSkillMatchedTasks = () => {
-    return availableNeeds.filter((need: any) => {
-      // Only show tasks that are active and match volunteer's city
-      const isActive = need.status === 'open';
-      const locationMatch = volunteer?.city === need.city;
-      
-      // Check if volunteer has required skill
-      const hasSkill = volunteer?.skills && volunteer.skills.length > 0 && 
-        (volunteer.skills.includes(need.requiredSkill) || volunteer.specialty === need.requiredSkill);
-      
-      // Return only active tasks that match location or skill
-      return isActive && (locationMatch || hasSkill);
-      
-      console.log('No match found for:', need.title);
-      return false;
-    });
-    
     const tasks = availableNeeds.filter((need: any) => {
       // Only show tasks that are active and match volunteer's city
       const isActive = need.status === 'open';
@@ -844,7 +834,12 @@ export default function VolunteerLayout() {
         skill.toLowerCase().includes(need.requiredSkill.toLowerCase())
       );
       
-      return isActive && (locationMatch || hasSkill);
+      // Check if there are remaining spots
+      const spotsFilled = need.spotsFilledCount || 0;
+      const spotsNeeded = need.peopleNeeded || 1;
+      const hasRemainingSpots = spotsFilled < spotsNeeded;
+      
+      return isActive && (locationMatch || hasSkill) && hasRemainingSpots;
     });
     
     console.log('Final matched tasks:', tasks);
@@ -1083,18 +1078,28 @@ export default function VolunteerLayout() {
                   </p>
                 </div>
                 <div className="space-y-4 w-full">
-                  {getSkillMatchedTasks().map((need) => (
+                  {getSkillMatchedTasks().map((need) => {
+                    const spotsFilled = need.spotsFilledCount || 0;
+                    const spotsNeeded = need.peopleNeeded || 1;
+                    const spotsRemaining = spotsNeeded - spotsFilled;
+                    
+                    return (
                     <div key={need.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-200 w-full">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
                         <h5 className="font-medium text-gray-900 truncate flex-1">{need.title}</h5>
-                        <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
-                          need.urgency === 'critical' ? 'bg-red-100 text-red-800' :
-                          need.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
-                          need.urgency === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {need.urgency}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
+                            need.urgency === 'critical' ? 'bg-red-100 text-red-800' :
+                            need.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
+                            need.urgency === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {need.urgency}
+                          </span>
+                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                            {spotsRemaining} spots remaining
+                          </span>
+                        </div>
                       </div>
                       <p className="text-sm text-gray-600 mb-3 line-clamp-3 overflow-hidden">{need.description}</p>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -1109,7 +1114,8 @@ export default function VolunteerLayout() {
                         </Button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
