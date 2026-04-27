@@ -810,11 +810,38 @@ export default function VolunteerLayout() {
   // Handle marking assignment as complete
   const handleMarkComplete = async (assignmentId: string) => {
     try {
+      // Get assignment details before updating
+      const assignmentDoc = await getDoc(doc(db, 'assignments', assignmentId));
+      const assignment = assignmentDoc.data();
+      
+      if (!assignment) {
+        addNotification('Assignment not found', 'error');
+        return;
+      }
+
       const assignmentRef = doc(db, 'assignments', assignmentId);
       await updateDoc(assignmentRef, {
         status: 'completed',
         completedAt: new Date()
       });
+
+      // Create notification for staff member
+      try {
+        const notificationsCollection = collection(db, 'notifications');
+        await addDoc(notificationsCollection, {
+          userId: assignment.staffId || 'current_staff', // Use staffId from assignment or default
+          title: 'Assignment Completed',
+          message: `${user?.name || 'A volunteer'} has completed ${assignment.needTitle || 'assignment'}`,
+          type: 'completion',
+          read: false,
+          createdAt: Timestamp.now()
+        });
+        console.log('Notification created for staff:', assignment.staffId);
+      } catch (notificationError) {
+        console.error('Error creating notification:', notificationError);
+        // Don't fail the completion if notification fails
+      }
+
       addNotification('Assignment marked as complete!', 'success');
     } catch (error) {
       console.error('Error marking assignment as complete:', error);

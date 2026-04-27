@@ -33,12 +33,15 @@ export default function StaffLayout() {
   const { addNotification } = useNotifications();
   
     const [activeTab, setActiveTab] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Default to true on desktop (>=768px), false on mobile
+    return typeof window !== 'undefined' ? window.innerWidth >= 768 : false;
+  });
 
   // Set sidebar state based on screen size
   useEffect(() => {
     const checkScreenSize = () => {
-      const isDesktop = window.innerWidth >= 1024; // lg breakpoint
+      const isDesktop = window.innerWidth >= 768; // md breakpoint as requested
       setSidebarOpen(isDesktop);
     };
 
@@ -49,6 +52,7 @@ export default function StaffLayout() {
   }, []);
   const [showCreateAssignmentModal, setShowCreateAssignmentModal] = useState(false);
   const [showAddNeedModal, setShowAddNeedModal] = useState(false);
+  const [showEditNeedModal, setShowEditNeedModal] = useState(false);
   const [showAddVolunteerModal, setShowAddVolunteerModal] = useState(false);
   const [showVolunteerDetailsModal, setShowVolunteerDetailsModal] = useState(false);
   const [selectedNeedForAssignment, setSelectedNeedForAssignment] = useState<string>('');
@@ -59,6 +63,7 @@ export default function StaffLayout() {
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   const [showNeedDetailsModal, setShowNeedDetailsModal] = useState(false);
   const [selectedNeed, setSelectedNeed] = useState<any>(null);
+  const [selectedNeedForEdit, setSelectedNeedForEdit] = useState<any>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [selectedRating, setSelectedRating] = useState(5);
   const [ratingFeedback, setRatingFeedback] = useState('');
@@ -273,6 +278,11 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
     setShowAddNeedModal(true);
   };
 
+  const handleEditNeed = (need: any) => {
+    setSelectedNeedForEdit(need);
+    setShowEditNeedModal(true);
+  };
+
   const handleSubmitNeed = async (newNeed: any) => {
     try {
       
@@ -293,6 +303,34 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
       // Socket functionality removed - using Firebase only
     } catch (error) {
       addNotification('Failed to add need', 'error');
+    }
+  };
+
+  const handleSubmitEditNeed = async (updatedNeed: any) => {
+    try {
+      if (!selectedNeedForEdit?.id) {
+        addNotification('No need selected for editing', 'error');
+        return;
+      }
+
+      // Update need in Firestore
+      const needRef = doc(db, 'needs', selectedNeedForEdit.id);
+      await updateDoc(needRef, {
+        ...updatedNeed,
+        updatedAt: Timestamp.now()
+      });
+      
+      // Refresh needs list
+      const needsData = await getAllNeeds();
+      setNeeds(needsData);
+      
+      // Close modal and reset selected need
+      setShowEditNeedModal(false);
+      setSelectedNeedForEdit(null);
+      
+      addNotification('Need updated successfully!', 'success');
+    } catch (error) {
+      addNotification('Failed to update need', 'error');
     }
   };
 
@@ -502,7 +540,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
         lg:translate-x-0
         transition-all duration-300 ease-in-out
-        ${sidebarOpen ? 'w-64 lg:w-64' : 'w-20 lg:w-64'} 
+        ${sidebarOpen ? 'w-64' : 'w-20'} lg:w-64 
         sidebar sidebar-animate flex flex-col
       `}>
         {/* Logo */}
@@ -533,7 +571,10 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                   key={item.id}
                   onClick={() => {
                     setActiveTab(item.id);
-                    setSidebarOpen(false);
+                    // Only close sidebar on mobile after navigation
+                    if (window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
                   }}
                   className={`w-full sidebar-item flex items-center space-x-3 animate-pulse-hover ${
                     activeTab === item.id ? 'active' : ''
@@ -555,7 +596,10 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                   key={item.id}
                   onClick={() => {
                     setActiveTab(item.id);
-                    setSidebarOpen(false);
+                    // Only close sidebar on mobile after navigation
+                    if (window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
                   }}
                   className={`w-full sidebar-item flex items-center space-x-3 animate-pulse-hover ${
                     activeTab === item.id ? 'active' : ''
@@ -577,7 +621,10 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                   key={item.id}
                   onClick={() => {
                     setActiveTab(item.id);
-                    setSidebarOpen(false);
+                    // Only close sidebar on mobile after navigation
+                    if (window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
                   }}
                   className={`w-full sidebar-item flex items-center space-x-3 animate-pulse-hover ${
                     activeTab === item.id ? 'active' : ''
@@ -856,6 +903,9 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                             <div className="flex flex-col sm:flex-row gap-2">
+                              <Button size="sm" variant="outline" className="btn-secondary-hover btn-touch-feedback text-xs px-2 py-1" onClick={() => handleEditNeed(need)}>
+                                Edit
+                              </Button>
                               {need.status !== 'completed' && (
                                 <Button size="sm" className="btn-primary-hover btn-touch-feedback text-xs px-2 py-1" onClick={() => handleQuickAssign(need)}>Quick Assign</Button>
                               )}
@@ -1098,6 +1148,11 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                         <Button size="sm" variant="outline" onClick={() => handleCompleteAssignment(assignment.id)}>Complete</Button>
                       )}
                       {assignment.status === 'completed' && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Completed
+                        </span>
+                      )}
+                      {assignment.status === 'completed' && (
                         assignment.rating ? (
                           <Button size="sm" variant="outline" disabled className="opacity-50 cursor-not-allowed">
                             Rated ({assignment.rating}⭐)
@@ -1166,7 +1221,9 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                     lat: selectedLocation.lat,
                     lng: selectedLocation.lng,
                     urgency: formData.get('urgency'),
-                    requiredSkill: formData.get('skill')
+                    requiredSkill: formData.get('skill'),
+                    peopleNeeded: parseInt(formData.get('peopleNeeded') as string) || 1,
+                    spotsFilledCount: 0
                   };
                   handleSubmitNeed(newNeed);
                 }}>
@@ -1238,21 +1295,22 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                     />
                   </div>
 
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Urgency *</label>
+                    <select
+                      name="urgency"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="">Select urgency</option>
+                      <option value="Critical">Critical</option>
+                      <option value="High">High</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Low">Low</option>
+                    </select>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Urgency *</label>
-                      <select
-                        name="urgency"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="">Select urgency</option>
-                        <option value="Critical">Critical</option>
-                        <option value="High">High</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Low">Low</option>
-                      </select>
-                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Required Skill *</label>
                       <select
@@ -1265,6 +1323,18 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                           <option key={skill} value={skill}>{skill}</option>
                         ))}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">People Needed *</label>
+                      <input
+                        type="number"
+                        name="peopleNeeded"
+                        required
+                        min="1"
+                        defaultValue="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Number of people needed"
+                      />
                     </div>
                   </div>
 
@@ -1281,6 +1351,154 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                     </Button>
                     <Button type="submit" className="bg-green-600 hover:bg-green-700">
                       Add Need
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Need Modal */}
+          {showEditNeedModal && selectedNeedForEdit && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg p-4 lg:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto lg:mx-4 modal-scale-in">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900">Edit Community Need</h3>
+                  <button
+                    onClick={() => {
+                      setShowEditNeedModal(false);
+                      setSelectedNeedForEdit(null);
+                    }}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const updatedNeed = {
+                    title: formData.get('title'),
+                    description: formData.get('description'),
+                    category: selectedNeedForEdit.category || 'Community Service',
+                    city: formData.get('city'),
+                    urgency: formData.get('urgency'),
+                    requiredSkill: formData.get('skill'),
+                    peopleNeeded: parseInt(formData.get('peopleNeeded') as string) || 1,
+                  };
+                  handleSubmitEditNeed(updatedNeed);
+                }}>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+                      <input
+                        type="text"
+                        name="title"
+                        required
+                        defaultValue={selectedNeedForEdit.title || ''}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Enter need title"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
+                      <select
+                        name="city"
+                        required
+                        defaultValue={selectedNeedForEdit.city || ''}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="">Select city</option>
+                        <option value="Mumbai">Mumbai</option>
+                        <option value="Delhi">Delhi</option>
+                        <option value="Bangalore">Bangalore</option>
+                        <option value="Chennai">Chennai</option>
+                        <option value="Kolkata">Kolkata</option>
+                        <option value="Hyderabad">Hyderabad</option>
+                        <option value="Pune">Pune</option>
+                        <option value="Jaipur">Jaipur</option>
+                        <option value="Lucknow">Lucknow</option>
+                        <option value="Patna">Patna</option>
+                        <option value="Kochi">Kochi</option>
+                        <option value="Ahmedabad">Ahmedabad</option>
+                        <option value="Surat">Surat</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                    <textarea
+                      name="description"
+                      required
+                      rows={3}
+                      defaultValue={selectedNeedForEdit.description || ''}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="Describe the community need"
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Urgency *</label>
+                    <select
+                      name="urgency"
+                      required
+                      defaultValue={selectedNeedForEdit.urgency || ''}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="">Select urgency</option>
+                      <option value="Critical">Critical</option>
+                      <option value="High">High</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Low">Low</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Required Skill *</label>
+                      <select
+                        name="skill"
+                        required
+                        defaultValue={selectedNeedForEdit.requiredSkill || selectedNeedForEdit.skill || ''}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="">Select skill</option>
+                        {SKILLS.map(skill => (
+                          <option key={skill} value={skill}>{skill}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">People Needed *</label>
+                      <input
+                        type="number"
+                        name="peopleNeeded"
+                        required
+                        min="1"
+                        defaultValue={selectedNeedForEdit.peopleNeeded || 1}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Number of people needed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowEditNeedModal(false);
+                        setSelectedNeedForEdit(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                      Update Need
                     </Button>
                   </div>
                 </form>
