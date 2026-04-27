@@ -932,8 +932,8 @@ export default function VolunteerLayout() {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto">
-          <main className="p-6 content-fade">
+        <div className="flex-1 overflow-hidden">
+          <main className="p-6 content-fade h-full overflow-hidden">
             {activeTab === 'home' && (
               <div className="home-fade-in">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
@@ -1374,7 +1374,7 @@ export default function VolunteerLayout() {
           )}
 
           {activeTab === 'map' && (
-            <div className="w-full h-[calc(100vh-64px)]">
+            <div className="w-full h-[calc(100vh-112px)] overflow-hidden">
               <InteractiveMap />
             </div>
           )}
