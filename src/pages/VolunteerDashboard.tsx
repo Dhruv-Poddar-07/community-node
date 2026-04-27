@@ -17,7 +17,6 @@ import {
   Bell
 } from 'lucide-react';
 import InteractiveMap from '../components/InteractiveMap';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 // Print-specific styles and animations
 const printStyles = `
@@ -914,42 +913,7 @@ export default function VolunteerLayout() {
     return 'bg-orange-100 text-orange-800';
   };
 
-  // Get chart data for the last 6 months
-  const getChartData = () => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const now = new Date();
-    const chartData = [];
-    
-    // Get last 6 months
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthName = months[date.getMonth()];
-      const year = date.getFullYear();
-      
-      // Count completed assignments for this month
-      const monthAssignments = myAssignments.filter(assignment => {
-        if (assignment.status !== 'completed') return false;
-        
-        const completedDate = assignment.completedAt ? new Date(assignment.completedAt) : 
-                              assignment.completedDate ? new Date(assignment.completedDate) :
-                              assignment.assignedDate ? new Date(assignment.assignedDate) : null;
-        
-        if (!completedDate) return false;
-        
-        return completedDate.getMonth() === date.getMonth() && 
-               completedDate.getFullYear() === date.getFullYear();
-      });
-      
-      chartData.push({
-        month: monthName,
-        tasks: monthAssignments.length,
-        fullMonth: `${monthName} ${year}`
-      });
-    }
-    
-    return chartData;
-  };
-
+  
   // Skill-based task matching function
   const getSkillMatchedTasks = () => {
     const tasks = availableNeeds.filter((need: any) => {
@@ -1388,40 +1352,6 @@ export default function VolunteerLayout() {
                 <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
                   <div className="text-4xl font-bold text-orange-600 mb-2">{getAverageRating()}</div>
                   <p className="text-sm text-gray-600">Average Rating</p>
-                </div>
-              </div>
-
-              {/* Activity Chart */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-                <h4 className="font-semibold text-gray-900 mb-4">Activity Over Last 6 Months</h4>
-                <div className="w-full h-[200px] md:h-[250px] lg:h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="month" 
-                        tick={{ fontSize: 12 }}
-                        tickLine={{ stroke: '#e5e7eb' }}
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 12 }}
-                        tickLine={{ stroke: '#e5e7eb' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '6px'
-                        }}
-                        formatter={(value: any) => [`${value} tasks`, 'Completed']}
-                      />
-                      <Bar dataKey="tasks" radius={[4, 4, 0, 0]}>
-                        {getChartData().map((_, index) => (
-                          <Cell key={`cell-${index}`} fill="#16a34a" />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
                 </div>
               </div>
 
