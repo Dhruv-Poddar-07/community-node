@@ -1969,7 +1969,7 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
           {/* Volunteer Selection Modal for Quick Assign */}
           {showVolunteerSelectionModal && selectedNeed && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-              <div className="bg-white rounded-lg p-4 lg:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="bg-white rounded-lg p-4 lg:p-6 max-w-lg w-full lg:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Select Volunteer for Assignment</h3>
                   <button 
@@ -1991,8 +1991,22 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-sm text-gray-600 font-medium">Available Volunteers:</p>
-                  {volunteers.map((volunteer: any) => (
+                  <p className="text-sm text-gray-600 font-medium">Available Volunteers in {selectedNeed.city}:</p>
+                  {(() => {
+                    const filteredVolunteers = volunteers.filter((volunteer: any) => 
+                      volunteer.city === selectedNeed.city
+                    );
+                    
+                    if (filteredVolunteers.length === 0) {
+                      return (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500 text-sm">No volunteers available in {selectedNeed.city}</p>
+                          <p className="text-gray-400 text-xs mt-2">Consider changing the need location or checking back later</p>
+                        </div>
+                      );
+                    }
+                    
+                    return filteredVolunteers.map((volunteer: any) => (
                     <div 
                       key={volunteer.id} 
                       className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -2037,7 +2051,8 @@ const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: num
                         ))}
                       </div>
                     </div>
-                  ))}
+                  ));
+                    })()}
                 </div>
 
                 <div className="mt-6 flex justify-end">
