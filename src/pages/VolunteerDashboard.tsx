@@ -824,7 +824,7 @@ export default function VolunteerLayout() {
   };
 
   return (
-    <div className="h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 flex flex-col">
       {/* Overlay */}
       <div 
         className={`sidebar-overlay ${sidebarOpen ? 'sidebar-overlay-visible' : ''}`}
@@ -902,9 +902,9 @@ export default function VolunteerLayout() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col w-full">
+      <div className="flex-1 flex flex-col w-full relative z-10">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-white border-b border-gray-200 px-6 py-4 relative z-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
